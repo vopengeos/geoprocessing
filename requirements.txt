@@ -9,3 +9,4 @@ streamlit_ext
 gpxpy
 pyproj
 osmnx
+what3words
