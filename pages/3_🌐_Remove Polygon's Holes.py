@@ -25,9 +25,10 @@ st.sidebar.info(
     Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
     """
 )
-st.title("Create Polygons from Holes")
-st.write('Create Polygons from Holes')
-col1, col2 = st.columns(2)    
+st.title("Remove Polygon's Holes")
+st.write("Remove Polygon's Holes")
+col1, col2 = st.columns(2)   
+area_tolerance = 0 
 
 def download_geojson(gdf, layer_name):
     if not gdf.empty:        
@@ -50,17 +51,14 @@ def remove_holes_features(f):
     coords_exterior = f.exterior.coords
     linearing_interior = []
     for interior in f.interiors:
-        if (area_meter(Polygon(interior)) > 1000 ):
+        if (area_meter(Polygon(interior)) >= area_tolerance):
             linearing_interior.append(interior)
     Polygon_Removed_Holes = Polygon(coords_exterior, holes = [interior for interior in linearing_interior])
-    # return Polygon_Removed_Holes
-    return Polygon(coords_exterior)
+    if area_tolerance ==0:
+        return Polygon(coords_exterior)
+    else:
+        return Polygon_Removed_Holes
 
-def create_holes_features(f): 
-    holes = Polygon([]) # create en empty Polygon
-    if (f != Polygon(f.exterior)): 
-        holes = f.symmetric_difference(Polygon(f.exterior)) 
-    return holes
 
 def remove_holes_polygon(source):   
     if (source.geometry.type == 'Polygon').all():
@@ -82,13 +80,13 @@ def remove_holes_polygon(source):
 def create_holes_polygon(source):   
     if (source.geometry.type == 'Polygon').all():
         target = source
-        target['geometry'] = target.geometry.map(create_holes_features) 
+        target['geometry'] = target.geometry.map(remove_holes_features) 
         return target  
 
     elif (source.geometry.type == 'MultiPolygon').all():
         source = source.explode(index_parts=False)
         target = source
-        target['geometry'] = target.geometry.map(create_holes_features) 
+        target['geometry'] = target.geometry.map(remove_holes_features) 
         target = target.dissolve(by = target.index)
         return target  
     
@@ -119,7 +117,7 @@ def style_function(feature):
         'fillColor': '#b1ddf9',
         'fillOpacity': 0.5,
         'color': 'blue',
-        'weight': 2,
+        'weight': 1,
         # 'dashArray': '5, 5'
     }
 
@@ -128,7 +126,7 @@ def highlight_function(feature):
     'fillColor': '#ffff00',
     'fillOpacity': 0.8,
     'color': '#ffff00',
-    'weight': 4,
+    'weight': 2,
     # 'dashArray': '5, 5'
 }
 
@@ -137,13 +135,19 @@ form = st.form(key="latlon_calculator")
 with form:   
     url = st.text_input(
             "Enter a URL to a vector dataset",
-            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon.geojson",
+            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon_with_holes.geojson",
         )
 
     uploaded_file = st.file_uploader(
             "Upload a vector dataset", type=["geojson", "kml", "zip", "tab"]
         )
-
+    area_tolerance = st.number_input(
+                        "Remove holes with area are less than (m2) (dedault = 0 to remove all holes)",
+                        min_value=0,
+                        value = 0,
+                        max_value=1000000
+                    )
+    
     if  url or uploaded_file:
         if url:
             file_path = url
@@ -180,7 +184,7 @@ with form:
             m.fit_bounds(m.get_bounds(), padding=(30, 30))
             folium_static(m, width = 600)
         
-        submitted = st.form_submit_button("Create new Polygons from Polygons' Holes")        
+        submitted = st.form_submit_button("Remove Polygon's Holes")        
         if submitted:
             target = create_holes_polygon(gdf)
             # target = target[target.geometry.area > 0]
