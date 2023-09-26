@@ -137,7 +137,7 @@ form = st.form(key="latlon_calculator")
 with form:   
     url = st.text_input(
             "Enter a URL to a vector dataset",
-            "https://raw.githubusercontent.com/thangqd/becagis_streamlit/main/data/csv/polygon.geojson",
+            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon.geojson",
         )
 
     uploaded_file = st.file_uploader(
