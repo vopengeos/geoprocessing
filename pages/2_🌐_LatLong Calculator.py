@@ -276,7 +276,7 @@ def transform(row,crs_source, crs_target):
 with col1:
     url = st.text_input(
         "Enter a CSV URL with Latitude and Longitude Columns",
-        'https://raw.githubusercontent.com/thangqd/becagis_streamlit/main/data/csv/us_cities.csv'
+        'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/us_cities.csv'
     )
     uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
     lat_column_index, lon_column_index = 0,0     

@@ -58,7 +58,7 @@ with col1:
     # m = folium.Map( tiles = 'https://grid.plus.codes/grid/tms/{z}/{x}/{y}.png', attr='Google Plus Code Grid')
     markers = m.add_child(folium.ClickForMarker())
     # folium.Rectangle([(28.6471948,76.9531796), (19.0821978,72.7411)]).add_to(m)
-    # Geocoder(default_css = [('Control.Geocoder.css', 'https://raw.githubusercontent.com/thangqd/becagis_streamlit/main/data/css/Control.Geocoder.css')]).add_to(m)
+    # Geocoder(default_css = [('Control.Geocoder.css', 'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/css/Control.Geocoder.css')]).add_to(m)
     map = st_folium(m, width = 800, height = 450)
     # map = st_folium(m)
 with col2:
