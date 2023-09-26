@@ -31,8 +31,8 @@ st.sidebar.info(
     """
 )
 
-st.title("BecaGIS LatLong Calculator")
-st.write('BecaGIS LatLong Calculator is inspired by [Lat Lon Tools](https://plugins.qgis.org/plugins/latlontools/) ')
+st.title("LatLong Calculator")
+st.write('LatLong Calculator is inspired by [Lat Lon Tools](https://plugins.qgis.org/plugins/latlontools/) ')
 
 UTM_FORMATS = ['48N 686261 1192650', '686261,1192650,48N','686261mE,1192650mN,48N', '686261mE,1192650mN,48,N']
 

@@ -23,8 +23,8 @@ st.sidebar.info(
     """
 )
 
-st.title("BecaGIS Antipodes Transform")
-st.write('BecaGIS Antipodes Transform')
+st.title("Antipodes Transform")
+st.write('Antipodes Transform')
 col1, col2 = st.columns(2)    
 
 def download_geojson(gdf, layer_name):
