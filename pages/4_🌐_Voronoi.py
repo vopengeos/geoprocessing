@@ -48,7 +48,8 @@ def voronoi_polygon(source):
                         (minx, maxy)])
     points = MultiPoint(source.geometry.to_list())
     voronoi = voronoi_diagram(points , envelope=bound)
-    target = gpd.GeoDataFrame({'geometry':voronoi}, crs = source.crs)
+    voronoi_geometry  = {'geometry':voronoi}
+    target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
     return target
 
 
