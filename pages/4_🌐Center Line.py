@@ -3,13 +3,13 @@ from streamlit_folium import folium_static
 import streamlit as st
 import streamlit_ext as ste
 import geopandas as gpd
+import pandas as pd
 import fiona, os
 from shapely.geometry import shape, Point, MultiPoint, LineString, Polygon, LinearRing
 import numpy as np
 import shapely
 from shapely.ops import transform
 from shapely.ops import voronoi_diagram
-
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -35,21 +35,10 @@ def download_geojson(gdf, layer_name):
         with col2:
             ste.download_button(
                 label="Download GeoJSON",
-                file_name= 'antipodes_' + layer_name+ '.geojson',
+                file_name= 'centerline_' + layer_name+ '.geojson',
                 mime="application/json",
                 data=geojson
             ) 
-
-
-def densify(f): 
-    densify_polygon = shapely.segmentize(f, max_segment_length=4)
-    return densify_polygon
-
-def centerline(source): 
-    if (source.geometry.type == 'Polygon').all():
-        geometry = densify(source.geometry)
-        target = gpd.GeoDataFrame(source, geometry=geometry)        
-        return target
 
 
 @st.cache_data
@@ -88,12 +77,59 @@ def highlight_function(feature):
     # 'dashArray': '5, 5'
 }
 
+def densify(f): 
+    st.write(shapely.__version__)
+    st.write(gpd.__version__)
+    densify_polygon = f.segmentize(max_segment_length=5)
+    return densify_polygon
+
+def listPoints(f):
+    '''List the points in a Polygon in a geometry entry - some polygons are more complex than others, so accommodating for that'''    
+    st.write(f)
+    pointList = []
+    try:
+        #Note: might miss parts within parts with this
+        for part in f:
+            x, y = part.exterior.coords.xy
+            pointList.append(list(zip(x,y)))
+    except:
+        try:
+            x,y = f.exterior.coords.xy
+            pointList.append(list(zip(x,y)))
+        except:
+            #this will return the geometry as is, enabling you to see if special handling is required - then modify the function as need be
+            pointList.append(f)
+    st.write(pointList)
+    return pointList
+
+def centerline(source): 
+    if (source.geometry.type == 'Polygon').all():
+        # # points = listPoints(source.geometry)
+        # # target = gpd.GeoDataFrame(source, geometry=geometry)        
+        # # data = {'col1': ['name1'], 'geometry': geometry}
+        # target = source
+        # # target['geometry'] = target.geometry.map(listPoints)
+        # target.geometry.apply(lambda x: listPoints(x)).values.tolist()
+        # st.write(target.geometry)
+        col = source.columns.tolist()
+        # new GeoDataFrame with same columns
+        target = gpd.GeoDataFrame(columns=col)
+        # target = source
+        # Extraction of the polygon nodes and attributes values from polys and integration into the new GeoDataFrame
+        for index, row in source.iterrows():
+            for j in list(row['geometry'].exterior.coords): 
+                target = target.append({'id': int(row['id']), 'layer':row['layer'],'name':row['name'], 'area':row['area'],'geometry':Point(j)},ignore_index=True)
+        target = target.set_crs(source.crs)
+        st.write(target)
+        return  target
+
+    
 
 form = st.form(key="latlon_calculator")
 with form:   
     url = st.text_input(
             "Enter a URL to a point dataset",
-            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/vn_cities.geojson",
+            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon_centerline.geojson",
         )
 
     uploaded_file = st.file_uploader(

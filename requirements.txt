@@ -1,5 +1,5 @@
 pandas
-geopandas
+geopandas==0.14.0
 keplergl
 streamlit
 folium
@@ -10,3 +10,4 @@ gpxpy
 pyproj
 osmnx
 what3words
+shapely==2.0.1
