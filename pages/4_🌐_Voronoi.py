@@ -7,8 +7,9 @@ import fiona, os
 from shapely.geometry import shape, Point, MultiPoint, LineString, Polygon, LinearRing
 import numpy as np
 import shapely
-from shapely.ops import transform
+# from shapely.ops import transform
 from shapely.ops import voronoi_diagram
+from scipy.spatial import Voronoi
 
 
 st.set_page_config(layout="wide")
@@ -35,7 +36,7 @@ def download_geojson(gdf, layer_name):
         with col2:
             ste.download_button(
                 label="Download GeoJSON",
-                file_name= 'antipodes_' + layer_name+ '.geojson',
+                file_name= 'voronoi_' + layer_name+ '.geojson',
                 mime="application/json",
                 data=geojson
             ) 
@@ -48,8 +49,8 @@ def voronoi_polygon(source):
                         (minx, maxy)])
     points = MultiPoint(source.geometry.to_list())
     voronoi = voronoi_diagram(points , envelope=bound)
-    st.write(voronoi)
-    voronoi_geometry  = {'geometry':voronoi}
+    st.write(voronoi.geoms)
+    voronoi_geometry  = {'geometry':voronoi.geoms}
     target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
     return target
 

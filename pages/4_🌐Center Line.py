@@ -102,28 +102,53 @@ def listPoints(f):
     st.write(pointList)
     return pointList
 
+def voronoi_polygon(source):  
+    minx, miny, maxx, maxy = source.total_bounds
+    bound = Polygon([(minx, miny),
+                        (maxx, miny),
+                        (maxx, maxy),
+                        (minx, maxy)])
+    points = MultiPoint(source.geometry.to_list())
+    voronoi = voronoi_diagram(points , envelope=bound)
+    st.write(voronoi.geoms)
+    voronoi_geometry  = {'geometry':voronoi.geoms}
+    target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
+    return target
+
+def explodeLine(row):
+    """A function to return all segments of a line as a list of linestrings"""
+    coords = row.geometry.coords #Create a list of all line node coordinates
+    parts = []
+    for part in zip(coords, coords[1:]): #For each start and end coordinate pair
+        parts.append(LineString(part)) #Create a linestring and append to parts list
+    return parts
+        
+    
+
 def centerline(source): 
     if (source.geometry.type == 'Polygon').all():
-        # # points = listPoints(source.geometry)
-        # # target = gpd.GeoDataFrame(source, geometry=geometry)        
-        # # data = {'col1': ['name1'], 'geometry': geometry}
-        # target = source
-        # # target['geometry'] = target.geometry.map(listPoints)
-        # target.geometry.apply(lambda x: listPoints(x)).values.tolist()
-        # st.write(target.geometry)
         col = source.columns.tolist()
-        # new GeoDataFrame with same columns
-        target = gpd.GeoDataFrame(columns=col)
-        # target = source
-        # Extraction of the polygon nodes and attributes values from polys and integration into the new GeoDataFrame
+        points = gpd.GeoDataFrame(columns=col)
         for index, row in source.iterrows():
             for j in list(row['geometry'].exterior.coords): 
-                target = target.append({'id': int(row['id']), 'layer':row['layer'],'name':row['name'], 'area':row['area'],'geometry':Point(j)},ignore_index=True)
-        target = target.set_crs(source.crs)
-        st.write(target)
-        return  target
+                # points = points.append({'id': int(row['id']), 'layer':row['layer'],'name':row['name'], 'area':row['area'],'geometry':Point(j)},ignore_index=True)
+                points = points.append({'geometry':Point(j)},ignore_index=True)
+        points = points.set_crs(source.crs)
+        vor_polygon = voronoi_polygon(points)
+        vor_polygon['geometry'] = vor_polygon.geometry.boundary
+        dfline = gpd.GeoDataFrame(data=vor_polygon, geometry='geometry')
+        dfline['tempgeom'] = dfline.apply(lambda x: explodeLine(x), axis=1) #Create a list of all line segments
+        dfline = dfline.explode('tempgeom') #Explode it so each segment becomes a row (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html)
 
-    
+        dfline = gpd.GeoDataFrame(data=dfline, geometry='tempgeom')
+        dfline = dfline.drop('geometry', axis=1)
+        dfline.crs = source.crs #Dont know why this is needed
+        
+        centerline_candidate = gpd.sjoin(dfline,source, predicate='within') #for each point index in the points, it stores the polygon index containing that point
+        st.write(centerline_candidate)
+        center_line = centerline_candidate.dissolve(by='index_right')
+
+        return  center_line
 
 form = st.form(key="latlon_calculator")
 with form:   
@@ -155,7 +180,7 @@ with form:
           
         with col1:   
             fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
-            m = folium.Map(tiles='stamenterrain', location = [center_lat, center_lon], zoom_start=4)           
+            m = folium.Map(tiles='stamenterrain', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)           
             folium.GeoJson(gdf, name = layer_name,  
                            style_function = style_function, 
                            highlight_function=highlight_function,
@@ -172,7 +197,7 @@ with form:
             m.fit_bounds(m.get_bounds(), padding=(30, 30))
             folium_static(m, width = 600)
         
-        submitted = st.form_submit_button("Create Polygon Diagram for a Point Layer")        
+        submitted = st.form_submit_button("Create Center Lines")        
         if submitted:
             # target = voronoi_diagram(gdf)
             target = centerline(gdf)
@@ -181,7 +206,7 @@ with form:
                     center = target.dissolve().centroid
                     center_lon, center_lat = center.x, center.y             
                     fields = [ column for column in target.columns if column not in target.select_dtypes('geometry')]
-                    m = folium.Map(tiles='stamentoner', location = [center_lat, center_lon], zoom_start=4)
+                    m = folium.Map(tiles='stamentoner', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)
                     folium.GeoJson(target,  
                                    style_function = style_function, 
                                    highlight_function=highlight_function,                                   
