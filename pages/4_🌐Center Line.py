@@ -10,6 +10,9 @@ import numpy as np
 import shapely
 from shapely.ops import transform
 from shapely.ops import voronoi_diagram
+from osgeo import ogr
+from shapely.wkt import loads
+
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -83,24 +86,13 @@ def densify(f):
     densify_polygon = f.segmentize(max_segment_length=5)
     return densify_polygon
 
-def listPoints(f):
-    '''List the points in a Polygon in a geometry entry - some polygons are more complex than others, so accommodating for that'''    
-    st.write(f)
-    pointList = []
-    try:
-        #Note: might miss parts within parts with this
-        for part in f:
-            x, y = part.exterior.coords.xy
-            pointList.append(list(zip(x,y)))
-    except:
-        try:
-            x,y = f.exterior.coords.xy
-            pointList.append(list(zip(x,y)))
-        except:
-            #this will return the geometry as is, enabling you to see if special handling is required - then modify the function as need be
-            pointList.append(f)
-    st.write(pointList)
-    return pointList
+def segmentize(geom):
+    wkt = geom.wkt  # shapely Polygon to wkt
+    geom = ogr.CreateGeometryFromWkt(wkt)  # create ogr geometry
+    geom.Segmentize(0.00001 )  # ~1.11 m
+    wkt2 = geom.ExportToWkt()  # ogr geometry to wkt
+    new = loads(wkt2)  # wkt to shapely Polygon
+    return new
 
 def voronoi_polygon(source):  
     minx, miny, maxx, maxy = source.total_bounds
@@ -124,9 +116,9 @@ def explodeLine(row):
     return parts
         
     
-
 def centerline(source): 
     if (source.geometry.type == 'Polygon').all():
+        source['geometry'] = source['geometry'].map(segmentize)
         col = source.columns.tolist()
         points = gpd.GeoDataFrame(columns=col)
         for index, row in source.iterrows():
