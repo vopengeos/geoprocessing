@@ -89,7 +89,8 @@ def densify(f):
 def segmentize(geom):
     wkt = geom.wkt  # shapely Polygon to wkt
     geom = ogr.CreateGeometryFromWkt(wkt)  # create ogr geometry
-    geom.Segmentize(0.00001 )  # ~1.11 m
+    geom.Segmentize(0.00001 )  # ~1.11 m in WGS84 CRS
+    # geom.Segmentize(1)  # 1m in EPSG:3857 CRS
     wkt2 = geom.ExportToWkt()  # ogr geometry to wkt
     new = loads(wkt2)  # wkt to shapely Polygon
     return new
@@ -125,7 +126,9 @@ def centerline(source):
             for j in list(row['geometry'].exterior.coords): 
                 # points = points.append({'id': int(row['id']), 'layer':row['layer'],'name':row['name'], 'area':row['area'],'geometry':Point(j)},ignore_index=True)
                 points = points.append({'geometry':Point(j)},ignore_index=True)
+
         points = points.set_crs(source.crs)
+        # points = points.set_crs('epsg:3857')
         vor_polygon = voronoi_polygon(points)
         vor_polygon['geometry'] = vor_polygon.geometry.boundary
         dfline = gpd.GeoDataFrame(data=vor_polygon, geometry='geometry')
@@ -139,7 +142,6 @@ def centerline(source):
         centerline_candidate = gpd.sjoin(dfline,source, predicate='within') #for each point index in the points, it stores the polygon index containing that point
         st.write(centerline_candidate)
         center_line = centerline_candidate.dissolve(by='index_right')
-
         return  center_line
 
 form = st.form(key="latlon_calculator")
