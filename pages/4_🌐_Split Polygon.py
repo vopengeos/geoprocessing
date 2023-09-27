@@ -12,7 +12,7 @@ from shapely.ops import transform
 from shapely.ops import voronoi_diagram
 from osgeo import ogr
 from shapely.wkt import loads
-from sklearn.cluster import KMeans
+from scikit_learn.cluster import KMeans
 
 
 
