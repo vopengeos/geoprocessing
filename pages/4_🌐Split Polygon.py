@@ -40,7 +40,7 @@ def download_geojson(gdf, layer_name):
         with col2:
             ste.download_button(
                 label="Download GeoJSON",
-                file_name= 'polygon_splitted_' + layer_name+ '.geojson',
+                file_name= 'splitted_' + layer_name+ '.geojson',
                 mime="application/json",
                 data=geojson
             ) 
@@ -103,7 +103,7 @@ def voronoi_polygon(source):
                         (minx, maxy)])
     points = MultiPoint(source.geometry.to_list())
     voronoi = voronoi_diagram(points , envelope=bound)
-    st.write(voronoi.geoms)
+    # st.write(voronoi.geoms)
     voronoi_geometry  = {'geometry':voronoi.geoms}
     target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
     return target
@@ -120,14 +120,14 @@ def splitpolygon(source, parts, random_points):
     a=pd.Series(target['geometry'].apply(lambda p: p.x))
     b=pd.Series(target['geometry'].apply(lambda p: p.y))
     X=np.column_stack((a,b))
-    st.write(X)
+    # st.write(X)
     wcss = []
     for i in range(1, 14):
         kmeans = KMeans(n_clusters = i, init = 'k-means++', random_state = 42)
         kmeans.fit(X)
         wcss.append(kmeans.inertia_)
-    st.write(wcss)
-    kmeans = KMeans(n_clusters = parts, init = 'k-means++', random_state = 5,  max_iter=400)
+    # st.write(wcss)
+    kmeans = KMeans(n_clusters = parts, init = 'k-means++', random_state = 100,  max_iter=400)
     y_kmeans = kmeans.fit_predict(X)
     k=pd.DataFrame(y_kmeans, columns=['cluster'])
     target=target.join(k)
@@ -137,14 +137,13 @@ def splitpolygon(source, parts, random_points):
     target['geometry'] = target.geometry.centroid
     target = voronoi_polygon(target)
     target = gpd.overlay(source, target, how='intersection')
-                      
+    return target              
     # target['geometry'] = target['geometry'].map(random_points_in_polygon)
     #     target.append(random_points_in_polygon(source.iloc[i].geometry, 100))
     # st.write(points)
     # target['geometry'] = target['geometry'].map(sample_random_geo)
     # st.write(target)
     # final = gpd.GeoDataFrame(geometry= MultiPointtarget,crs =source.crs)
-    return target
     # parameters2 =  {'INPUT': points['OUTPUT'],
     #             'CLUSTERS' :parts,
     #             'FIELD_NAME' : 'CLUSTER_ID',
@@ -224,10 +223,10 @@ with form:
             m.fit_bounds(m.get_bounds(), padding=(30, 30))
             folium_static(m, width = 600)
         
-        submitted = st.form_submit_button("Create Center Lines")        
+        submitted = st.form_submit_button("Split Polygons")        
         if submitted:
             # target = voronoi_diagram(gdf)
-            target = splitpolygon(gdf,5,1000)
+            target = splitpolygon(gdf,20,100)
             with col2:
                 if not target.empty: 
                     center = target.dissolve().centroid
