@@ -12,6 +12,8 @@ from shapely.ops import transform
 from shapely.ops import voronoi_diagram
 from osgeo import ogr
 from shapely.wkt import loads
+from sklearn.cluster import KMeans
+
 
 
 st.set_page_config(layout="wide")
@@ -28,8 +30,8 @@ st.sidebar.info(
     Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
     """
 )
-st.title("Center Line")
-st.write('Create Center Line for Polygons')
+st.title("Split Polygon")
+st.write('Split Polygon layer into almost equal parts using Voronoi Diagram')
 col1, col2 = st.columns(2)    
 
 def download_geojson(gdf, layer_name):
@@ -38,7 +40,7 @@ def download_geojson(gdf, layer_name):
         with col2:
             ste.download_button(
                 label="Download GeoJSON",
-                file_name= 'centerline_' + layer_name+ '.geojson',
+                file_name= 'polygon_splitted_' + layer_name+ '.geojson',
                 mime="application/json",
                 data=geojson
             ) 
@@ -80,15 +82,18 @@ def highlight_function(feature):
     # 'dashArray': '5, 5'
 }
 
-
-def segmentize(geom):
-    wkt = geom.wkt  # shapely Polygon to wkt
-    geom = ogr.CreateGeometryFromWkt(wkt)  # create ogr geometry
-    geom.Segmentize(0.00001 )  # ~1.11 m in WGS84 CRS
-    # geom.Segmentize(1)  # 1m in EPSG:3857 CRS
-    wkt2 = geom.ExportToWkt()  # ogr geometry to wkt
-    new = loads(wkt2)  # wkt to shapely Polygon
-    return new
+def random_points_in_polygon(polygon, number):
+    points = []
+    min_x, min_y, max_x, max_y = polygon.bounds
+    i= 0
+    while i < number:
+        point = Point(np.random.uniform(min_x, max_x), np.random.uniform(min_y, max_y))
+        if polygon.contains(point):
+            points.append(point)
+            i += 1
+    target = gpd.GeoDataFrame({'geometry': points},crs = 'epsg:4326')
+    # return points  # returns list of shapely point
+    return target 
 
 def voronoi_polygon(source):  
     minx, miny, maxx, maxy = source.total_bounds
@@ -98,62 +103,85 @@ def voronoi_polygon(source):
                         (minx, maxy)])
     points = MultiPoint(source.geometry.to_list())
     voronoi = voronoi_diagram(points , envelope=bound)
-    # st.write(voronoi.geoms)
+    st.write(voronoi.geoms)
     voronoi_geometry  = {'geometry':voronoi.geoms}
     target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
     return target
 
-def explodeLine(row):
-    """A function to return all segments of a line as a list of linestrings"""
-    coords = row.geometry.coords #Create a list of all line node coordinates
-    parts = []
-    for part in zip(coords, coords[1:]): #For each start and end coordinate pair
-        parts.append(LineString(part)) #Create a linestring and append to parts list
-    return parts
-        
-def centerline_create(source):
-    source['geometry'] = source['geometry'].map(segmentize)
-    source = source.explode(index_parts=False)
-    col = source.columns.tolist()
-    points = gpd.GeoDataFrame(columns=col)
-    for index, row in source.iterrows():
-        for j in list(row['geometry'].exterior.coords): 
-            points = points.append({'geometry':Point(j)},ignore_index=True)
 
-    points = points.set_crs(source.crs)
-    # points = points.set_crs('epsg:3857')
-    vor_polygon = voronoi_polygon(points)
-    vor_polygon['geometry'] = vor_polygon.geometry.boundary
-    dfline = gpd.GeoDataFrame(data=vor_polygon, geometry='geometry')
-    dfline['tempgeom'] = dfline.apply(lambda x: explodeLine(x), axis=1) #Create a list of all line segments
-    dfline = dfline.explode('tempgeom') #Explode it so each segment becomes a row (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html)
+def splitpolygon(source, parts, random_points):	
+    #target = source
+    # target = random_points_in_polygon(source)
+    # target['geometry'] = target['geometry'].map(random_points_in_polygon)
+    # target = []
+    # for i in source.index:
+    # target = source
+    target = random_points_in_polygon(source.iloc[0].geometry, 100)
+    a=pd.Series(target['geometry'].apply(lambda p: p.x))
+    b=pd.Series(target['geometry'].apply(lambda p: p.y))
+    X=np.column_stack((a,b))
+    st.write(X)
+    wcss = []
+    for i in range(1, 14):
+        kmeans = KMeans(n_clusters = i, init = 'k-means++', random_state = 42)
+        kmeans.fit(X)
+        wcss.append(kmeans.inertia_)
+    st.write(wcss)
+    kmeans = KMeans(n_clusters = parts, init = 'k-means++', random_state = 5,  max_iter=400)
+    y_kmeans = kmeans.fit_predict(X)
+    k=pd.DataFrame(y_kmeans, columns=['cluster'])
+    target=target.join(k)
 
-    dfline = gpd.GeoDataFrame(data=dfline, geometry='tempgeom')
-    dfline = dfline.drop('geometry', axis=1)
-    dfline.crs = source.crs #Dont know why this is needed
-    
-    centerline_candidate = gpd.sjoin(dfline,source, predicate='within') #for each point index in the points, it stores the polygon index containing that point
-    # st.write(centerline_candidate)
-    center_line = centerline_candidate.dissolve(by='index_right')
-    return center_line
+    target = target.dissolve(by = target.cluster)
+    # centroids = target.centroid
+    target['geometry'] = target.geometry.centroid
+    target = voronoi_polygon(target)
+    target = gpd.overlay(source, target, how='intersection')
+                      
+    # target['geometry'] = target['geometry'].map(random_points_in_polygon)
+    #     target.append(random_points_in_polygon(source.iloc[i].geometry, 100))
+    # st.write(points)
+    # target['geometry'] = target['geometry'].map(sample_random_geo)
+    # st.write(target)
+    # final = gpd.GeoDataFrame(geometry= MultiPointtarget,crs =source.crs)
+    return target
+    # parameters2 =  {'INPUT': points['OUTPUT'],
+    #             'CLUSTERS' :parts,
+    #             'FIELD_NAME' : 'CLUSTER_ID',
+    #             'SIZE_FIELD_NAME' : 'CLUSTER_SIZE',
+    #             'OUTPUT' : 'memory:kmeansclustering'} 
+    # kmeansclustering = processing.run('qgis:kmeansclustering', parameters2)
 
-def centerline(source): 
-    if (source.geometry.type == 'MultiPolygon').all():
-        source = source.explode(index_parts=False)
-        center_line_singlepart = centerline_create(source)        
-        center_line = center_line_singlepart.dissolve(by = center_line_singlepart.index)
-        return center_line
+    # parameters3 = {'INPUT': kmeansclustering['OUTPUT'],                  
+    #             'GROUP_BY' : 'CLUSTER_ID',
+    #             'AGGREGATES' : [],
+    #             'OUTPUT' : 'memory:aggregate'} 
+    # aggregate = processing.run('qgis:aggregate',parameters3)
 
-    elif (source.geometry.type == 'Polygon').all():
-        center_line = centerline_create(source)  
-        return  center_line
+    # parameters4 = {'INPUT': aggregate['OUTPUT'],                  
+    #             'ALL_PARTS' : False,
+    #             'OUTPUT' : 'memory:centroids'} 
+    # centroids = processing.run('qgis:centroids',parameters4)
+
+    # parameters5 = {'INPUT': centroids['OUTPUT'],                  
+    #             'BUFFER' : 1000,
+    #             'OUTPUT' : 'memory:voronoi'} 
+    # voronoi = processing.run('qgis:voronoipolygons',parameters5)
+
+    # parameters6 = {'INPUT': layer,  
+    #             'OVERLAY':   voronoi['OUTPUT'],           
+    #             'OUTPUT' : 'TEMPORARY_OUTPUT'
+    #         } 
+    # intersection = processing.run('qgis:intersection',parameters6)
+    # output = intersection['OUTPUT']
+    # return output
 
 
-form = st.form(key="center_line")
+form = st.form(key="split_polygon")
 with form:   
     url = st.text_input(
             "Enter a URL to a point dataset",
-            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/multipolygon_centerline.geojson",
+            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon_split.geojson",
         )
 
     uploaded_file = st.file_uploader(
@@ -199,7 +227,7 @@ with form:
         submitted = st.form_submit_button("Create Center Lines")        
         if submitted:
             # target = voronoi_diagram(gdf)
-            target = centerline(gdf)
+            target = splitpolygon(gdf,5,1000)
             with col2:
                 if not target.empty: 
                     center = target.dissolve().centroid
