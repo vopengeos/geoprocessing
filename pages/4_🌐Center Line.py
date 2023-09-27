@@ -25,8 +25,8 @@ st.sidebar.info(
     Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
     """
 )
-st.title("Voronoi Diagram")
-st.write('Voronoi Diagram')
+st.title("Center Line")
+st.write('Create Center Line for Polygons')
 col1, col2 = st.columns(2)    
 
 def download_geojson(gdf, layer_name):
@@ -40,18 +40,16 @@ def download_geojson(gdf, layer_name):
                 data=geojson
             ) 
 
-def voronoi_polygon(source):  
-    minx, miny, maxx, maxy = source.total_bounds
-    bound = Polygon([(minx, miny),
-                        (maxx, miny),
-                        (maxx, maxy),
-                        (minx, maxy)])
-    points = MultiPoint(source.geometry.to_list())
-    voronoi = voronoi_diagram(points , envelope=bound)
-    st.write(voronoi)
-    voronoi_geometry  = {'geometry':voronoi}
-    target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
-    return target
+
+def densify(f): 
+    densify_polygon = shapely.segmentize(f, max_segment_length=4)
+    return densify_polygon
+
+def centerline(source): 
+    if (source.geometry.type == 'Polygon').all():
+        geometry = densify(source.geometry)
+        target = gpd.GeoDataFrame(source, geometry=geometry)        
+        return target
 
 
 @st.cache_data
@@ -141,7 +139,7 @@ with form:
         submitted = st.form_submit_button("Create Polygon Diagram for a Point Layer")        
         if submitted:
             # target = voronoi_diagram(gdf)
-            target = voronoi_polygon(gdf)
+            target = centerline(gdf)
             with col2:
                 if not target.empty: 
                     center = target.dissolve().centroid
