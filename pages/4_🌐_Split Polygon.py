@@ -116,7 +116,7 @@ def splitpolygon(source, parts, random_points):
     # target = []
     # for i in source.index:
     # target = source
-    target = random_points_in_polygon(source.iloc[0].geometry, 100)
+    target = random_points_in_polygon(source.iloc[0].geometry, random_points)
     a=pd.Series(target['geometry'].apply(lambda p: p.x))
     b=pd.Series(target['geometry'].apply(lambda p: p.y))
     X=np.column_stack((a,b))
@@ -226,7 +226,7 @@ with form:
         submitted = st.form_submit_button("Split Polygons")        
         if submitted:
             # target = voronoi_diagram(gdf)
-            target = splitpolygon(gdf,20,100)
+            target = splitpolygon(gdf,20,200)
             with col2:
                 if not target.empty: 
                     center = target.dissolve().centroid
