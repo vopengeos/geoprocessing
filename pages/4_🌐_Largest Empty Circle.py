@@ -124,7 +124,7 @@ form = st.form(key="largestemptycircle")
 with form:   
     url = st.text_input(
             "Enter a URL to a point dataset",
-            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/us_cities.geojson",
+            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/vn_cities.geojson",
         )
 
     uploaded_file = st.file_uploader(
