@@ -198,7 +198,6 @@ with form:
         
         submitted = st.form_submit_button("Create Center Lines")        
         if submitted:
-            # target = voronoi_diagram(gdf)
             target = centerline(gdf)
             with col2:
                 if not target.empty: 
