@@ -12,4 +12,4 @@ osmnx
 what3words
 shapely==2.0.1
 scikit-learn
-gdal
+pygdal
