@@ -5,7 +5,7 @@ import streamlit_ext as ste
 import geopandas as gpd
 import pandas as pd
 import fiona, os
-from shapely.geometry import shape, Point, MultiPoint, LineString, Polygon, LinearRing
+from shapely.geometry import mapping, shape, Point, MultiPoint, LineString, Polygon, LinearRing
 import numpy as np
 import shapely
 # from shapely.ops import transform
@@ -37,7 +37,7 @@ def download_center(gdf, layer_name):
         with col2:
             ste.download_button(
                 label="Download LEC's center",
-                file_name= 'center_' + layer_name+ '.geojson',
+                file_name= 'lec_center_' + layer_name+ '.geojson',
                 mime="application/json",
                 data=geojson
             ) 
@@ -119,6 +119,11 @@ def haversine(lat1, lon1, lat2, lon2):
 
 def poly_to_points(poly):
     return poly.exterior.coords
+def flatten_extend(matrix):
+     flat_list = []
+     for row in matrix:
+         flat_list.extend(row)
+     return flat_list
 
 form = st.form(key="largestemptycircle")
 with form:   
@@ -141,17 +146,17 @@ with form:
 
         if file_path.lower().endswith(".kml"):
             fiona.drvsupport.supported_drivers["KML"] = "rw"
-            gdf = gpd.read_file(file_path, driver="KML")
+            source = gpd.read_file(file_path, driver="KML")
         else:
-            gdf = gpd.read_file(file_path)
+            source = gpd.read_file(file_path)
         
-        center = gdf.dissolve().centroid
+        center = source.dissolve().centroid
         center_lon, center_lat = center.x, center.y
           
         with col1:   
-            fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
+            fields = [ column for column in source.columns if column not in source.select_dtypes('geometry')]
             m = folium.Map(tiles='stamenterrain', location = [center_lat, center_lon], zoom_start=4)           
-            folium.GeoJson(gdf, name = layer_name,  
+            folium.GeoJson(source, name = layer_name,  
                            style_function = style_function, 
                            highlight_function=highlight_function,
                            marker = folium.Marker(icon=folium.Icon(
@@ -169,80 +174,50 @@ with form:
         
         submitted = st.form_submit_button("Create Largest Empty Circle")        
         if submitted:
-            # target = voronoi_diagram(gdf)
-            geoms = []
-            voronoi = voronoi_polygon(gdf)
-            for index,row in gdf.iterrows(): 
-                geoms.append(shape(row.geometry)) 
+            #################
+            # Create Voronoi Polygon
+            voronoi = voronoi_polygon(source)
 
-            list_arrays = [ np.array((geom.xy[0][0], geom.xy[1][0])) for geom in geoms ]
-            convex_hull_geoms = ConvexHull(list_arrays)
-            # convex_hull = gpd.GeoDataFrame({'geometry':convex_hull_geoms}, crs = gdf.crs)
-            # convex_hull = gdf
-            # st.write(convex_hull_geoms)
-            polylist = []
-            for idx in convex_hull_geoms.vertices: #Indices of points forming the vertices of the convex hull.
-                polylist.append(list_arrays[idx]) #Append this index point to list
-
-            p = Polygon(polylist)
-            df = pd.DataFrame({'hull':[1]})
-            df['geometry'] = p
-            convex_hull = gpd.GeoDataFrame(df, crs=gdf.crs, geometry='geometry')
-            convex_hull_points = convex_hull.get_coordinates()
-            df = pd.DataFrame(convex_hull_points)
-            convex_hull_points = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df['x'], df['y'], crs = gdf.crs))
+            #################
+             # Create Convex Hull
+            convex_hull_geom = source.unary_union.convex_hull
+            convex_hull = gpd.GeoDataFrame(geometry=gpd.GeoSeries(convex_hull_geom),crs = source.crs)
+            
+            #################
+            # Extract Convex Hull Vertices
+            convex_hull_coords = convex_hull.get_coordinates()
+            convex_hull_points = gpd.GeoDataFrame(geometry=gpd.points_from_xy(convex_hull_coords['x'], convex_hull_coords['y'],crs = source.crs))
             convex_hull_points = convex_hull_points.drop_duplicates() 
+           
+           #################
+            # Clip voronoi with convex_hull and extract intersection vertices which are candidates of LEC's center
             clip = gpd.clip(voronoi, convex_hull)
-            col = clip.columns.tolist()
-            # new GeoDataFrame with same columns
-            nodes = gpd.GeoDataFrame(columns=col)
-            # Extraction of the polygon nodes and attributes values from polys and integration into the new GeoDataFrame
-            for index, row in clip.iterrows():
-                for j in list(row['geometry'].exterior.coords): 
-                    nodes = nodes.append({'geometry':Point(j) },ignore_index=True)
-            nodes = nodes.set_crs(gdf.crs)
-            nodes = nodes.drop_duplicates()            
-            nearest = gpd.sjoin_nearest(nodes, gdf,distance_col="distance")                              
-            nearest = nearest[nearest['distance'] == nearest['distance'].max()]
-            # st.write(nearest)
-            # circle =nearest['geometry'].buffer(nearest['distance'])
-            # st.write(circle)     
-            # df = pd.DataFrame(circle)
-            # lec = gpd.GeoDataFrame(df, geometry=circle, crs = gdf.crs)
+            clip_points = clip.get_coordinates()
+            center_candidates = gpd.GeoDataFrame(geometry=gpd.points_from_xy(clip_points['x'], clip_points['y'], crs = source.crs))
+            center_candidates = center_candidates.drop_duplicates() 
 
-            lec = nearest.copy()
-            lec['geometry'] = nearest['geometry'].buffer(nearest['distance'])
+            #################
+            # Get LEC and LEC centroid
+            lec_center_geom = gpd.sjoin_nearest(center_candidates, source,distance_col="distance")                              
+            lec_center_geom = lec_center_geom[lec_center_geom['distance'] == lec_center_geom['distance'].max()]
+            
+            lec = lec_center_geom.copy()           
+            lec['geometry'] = lec['geometry'].buffer(lec['distance'])
 
 
-            # target = clip  
-            ################################
-            # convex_hull_points = gpd.GeoDataFrame(df, crs="EPSG:4326", geometry=geometry))
             with col2:                
-                center = gdf.dissolve().centroid
+                center = source.dissolve().centroid
                 center_lon, center_lat = center.x, center.y             
-                fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
+                fields = [ column for column in source.columns if column not in source.select_dtypes('geometry')]
                 m = folium.Map(tiles='stamentoner', location = [center_lat, center_lon], zoom_start=4)
                 
-                folium.GeoJson(nodes,  
-                                style_function = style_function, 
-                                highlight_function=highlight_function,   
-                                marker = folium.Marker(icon=folium.Icon(
-                                    icon='ok-circle',
-                                    color = 'red'
-                                    ))
-                                ).add_to(m)
-                
-                folium.GeoJson(convex_hull,  
-                                style_function = style_function, 
-                                highlight_function=highlight_function                                   
-                                ).add_to(m)
-                
-                folium.GeoJson(voronoi,  
+                           
+                folium.GeoJson(clip,  
                                 style_function = style_function, 
                                 highlight_function=highlight_function,                                   
                                 ).add_to(m)
                 
-                folium.GeoJson(nearest,  
+                folium.GeoJson(lec_center_geom,  
                                 marker = folium.Marker(icon=folium.Icon(
                                     icon='ok-circle',
                                     color = 'green'
@@ -256,18 +231,18 @@ with form:
                                 highlight_function=highlight_function                                   
                                 ).add_to(m)
                 
-                # folium.GeoJson(gdf,  
-                #                 marker = folium.Marker(icon=folium.Icon(
-                #                     icon='ok-circle',
-                #                     color = 'purple'
-                #                     )),  
-                #                 style_function = style_function, 
-                #                 highlight_function=highlight_function,                                   
-                #                 popup = folium.GeoJsonPopup(
-                #                 fields = fields
-                #                 )).add_to(m)
+                folium.GeoJson(source,  
+                                marker = folium.Marker(icon=folium.Icon(
+                                    icon='ok-circle',
+                                    color = 'purple'
+                                    )),  
+                                style_function = style_function, 
+                                highlight_function=highlight_function,                                   
+                                popup = folium.GeoJsonPopup(
+                                fields = fields
+                                )).add_to(m)
 
                 m.fit_bounds(m.get_bounds(), padding=(30, 30))
                 folium_static(m, width = 600)         
-                download_center(nearest, layer_name)  
+                download_center(lec_center_geom, layer_name)  
                 download_lec(lec, layer_name) 
