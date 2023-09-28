@@ -3,15 +3,14 @@ from streamlit_folium import folium_static
 import streamlit as st
 import streamlit_ext as ste
 import geopandas as gpd
-import pandas as pd
 import fiona, os
-from shapely.geometry import shape, Point, MultiPoint, LineString, Polygon, LinearRing
-import numpy as np
-import shapely
-from shapely.ops import transform
-from shapely.ops import voronoi_diagram
-from osgeo import ogr
+from shapely.geometry import Point, MultiPoint, LineString, Polygon, LinearRing
+from shapely.ops import transform, voronoi_diagram
 from shapely.wkt import loads
+try:
+    from osgeo import ogr
+except ImportError:
+    import ogr
 
 
 st.set_page_config(layout="wide")
