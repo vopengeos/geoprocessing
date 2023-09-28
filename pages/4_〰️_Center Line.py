@@ -7,10 +7,6 @@ import fiona, os
 from shapely.geometry import Point, MultiPoint, LineString, Polygon, LinearRing
 from shapely.ops import transform, voronoi_diagram
 from shapely.wkt import loads
-try:
-    from osgeo import ogr
-except ImportError:
-    import ogr
 
 
 st.set_page_config(layout="wide")
@@ -28,7 +24,7 @@ st.sidebar.info(
     """
 )
 st.title("Center Line")
-st.write('Create Center Line for Polygons')
+st.write('Create Center Line for Polygon')
 col1, col2 = st.columns(2)    
 
 def download_geojson(gdf, layer_name):
@@ -80,14 +76,11 @@ def highlight_function(feature):
 }
 
 
-def segmentize(geom):
-    wkt = geom.wkt  # shapely Polygon to wkt
-    geom = ogr.CreateGeometryFromWkt(wkt)  # create ogr geometry
-    geom.Segmentize(0.00001 )  # ~1.11 m in WGS84 CRS
-    # geom.Segmentize(1)  # 1m in EPSG:3857 CRS
-    wkt2 = geom.ExportToWkt()  # ogr geometry to wkt
-    new = loads(wkt2)  # wkt to shapely Polygon
-    return new
+def segmentize(geom):  
+    return geom.segmentize(max_segment_length=2) # meters
+
+def simplify(geom):  
+    return geom.simplify(0.1) # meters
 
 def voronoi_polygon(source):  
     minx, miny, maxx, maxy = source.total_bounds
@@ -111,29 +104,38 @@ def explodeLine(row):
     return parts
         
 def centerline_create(source):
-    source['geometry'] = source['geometry'].map(segmentize)
-    source = source.explode(index_parts=False)
+    # Densify Polygon
+    source = source.to_crs(3857) # to set max_segment_length in meters
+    source['geometry'] = source['geometry'].map(segmentize)       
+    
+    # Extract Polygon's vertices
     col = source.columns.tolist()
     points = gpd.GeoDataFrame(columns=col)
     for index, row in source.iterrows():
         for j in list(row['geometry'].exterior.coords): 
             points = points.append({'geometry':Point(j)},ignore_index=True)
 
-    points = points.set_crs(source.crs)
-    # points = points.set_crs('epsg:3857')
-    vor_polygon = voronoi_polygon(points)
-    vor_polygon['geometry'] = vor_polygon.geometry.boundary
-    dfline = gpd.GeoDataFrame(data=vor_polygon, geometry='geometry')
-    dfline['tempgeom'] = dfline.apply(lambda x: explodeLine(x), axis=1) #Create a list of all line segments
-    dfline = dfline.explode('tempgeom') #Explode it so each segment becomes a row (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html)
+    # Create Voronoi Polygon and convert to Polyline
+    voronoi_diagram = voronoi_polygon(points)
+    voronoi_diagram['geometry'] = voronoi_diagram.geometry.boundary
 
-    dfline = gpd.GeoDataFrame(data=dfline, geometry='tempgeom')
-    dfline = dfline.drop('geometry', axis=1)
-    dfline.crs = source.crs #Dont know why this is needed
+    # Explode Voronoi Diagram into line segments
+    voronoi_exploded = voronoi_diagram.copy()
+    # voronoi_exploded = gpd.GeoDataFrame(data=voronoi_diagram, geometry='geometry', crs = source.crs)
+    voronoi_exploded['geometry'] = voronoi_exploded.apply(lambda x: explodeLine(x), axis=1) #Create a list of all line segments
+    voronoi_exploded = voronoi_exploded.explode('geometry') #Explode it so each segment becomes a row (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html)
+    voronoi_exploded = gpd.GeoDataFrame(data=voronoi_exploded, geometry='geometry', crs = source.crs )
+
+
+    # Find Center_line candidates which are within its corresponding Polygon
+    centerline_candidates = gpd.sjoin(voronoi_exploded,source, predicate='within') 
     
-    centerline_candidate = gpd.sjoin(dfline,source, predicate='within') #for each point index in the points, it stores the polygon index containing that point
-    # st.write(centerline_candidate)
-    center_line = centerline_candidate.dissolve(by='index_right')
+    # Merege center_line segments into one 
+    centerline_candidates = centerline_candidates.to_crs(3857)
+    centerline_candidates['geometry'] = centerline_candidates['geometry'].map(simplify)
+    center_line = centerline_candidates.dissolve(by='index_right')
+    source = source.to_crs(4326)
+    center_line = center_line.to_crs(source.crs)
     return center_line
 
 def centerline(source): 
