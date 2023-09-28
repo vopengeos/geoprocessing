@@ -11,6 +11,7 @@ import shapely
 # from shapely.ops import transform
 from shapely.ops import voronoi_diagram
 from scipy.spatial import Voronoi, ConvexHull, distance_matrix
+from math import radians, cos, acos, sin, asin, sqrt
 
 
 st.set_page_config(layout="wide")
@@ -68,6 +69,30 @@ def voronoi_polygon(source):
     return target
 
 
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance in kilometers between two points 
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
+    return c * r
+
+
+def great_circle(lon1, lat1, lon2, lat2):
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    return 6371 * (
+        acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2))
+    )
+
 @st.cache_data
 def save_uploaded_file(file_content, file_name):
     """
@@ -104,28 +129,7 @@ def highlight_function(feature):
     # 'dashArray': '5, 5'
 }
 
-import math
-
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371  # Radius of the earth in km
-    dLat = math.radians(lat2 - lat1)
-    dLon = math.radians(lon2 - lon1)
-    a = math.sin(dLat / 2) * math.sin(dLat / 2) + math.cos(math.radians(lat1)) \
-        * math.cos(math.radians(lat2)) * math.sin(dLon / 2) * math.sin(dLon / 2)
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    d = R * c  # Distance in km
-    return d
-
-
-def poly_to_points(poly):
-    return poly.exterior.coords
-def flatten_extend(matrix):
-     flat_list = []
-     for row in matrix:
-         flat_list.extend(row)
-     return flat_list
-
-form = st.form(key="largestemptycircle")
+form = st.form(key="largest_empty_circle")
 with form:   
     url = st.text_input(
             "Enter a URL to a point dataset",
@@ -198,26 +202,28 @@ with form:
 
             #################
             # Get LEC and LEC centroid
-            lec_center_geom = gpd.sjoin_nearest(center_candidates, source,distance_col="distance")                              
-            lec_center_geom = lec_center_geom[lec_center_geom['distance'] == lec_center_geom['distance'].max()]
-            
-            lec = lec_center_geom.copy()           
-            lec['geometry'] = lec['geometry'].buffer(lec['distance'])
+            # center_candidates = center_candidates.to_crs(3857) # to calculate distance in meters
+            # source = source.to_crs(3857)  # to calculate distance in meters
 
+            lec_center = gpd.sjoin_nearest(center_candidates, source,distance_col="radius")                              
+            lec_center = lec_center[lec_center['radius'] == lec_center['radius'].max()]
+            lec_center = lec_center.head(1) # ensure that just only one center is determined as LEC's center
+            # st.write(lec_center)
+            lec = lec_center.copy()           
+            lec['geometry'] = lec['geometry'].buffer(lec['radius'])
 
-            with col2:                
-                center = source.dissolve().centroid
-                center_lon, center_lat = center.x, center.y             
+            with col2:                             
+                map_center = source.dissolve().centroid
+                center_lon, center_lat = map_center.x, map_center.y             
                 fields = [ column for column in source.columns if column not in source.select_dtypes('geometry')]
                 m = folium.Map(tiles='stamentoner', location = [center_lat, center_lon], zoom_start=4)
-                
-                           
+                                          
                 folium.GeoJson(clip,  
                                 style_function = style_function, 
                                 highlight_function=highlight_function,                                   
                                 ).add_to(m)
                 
-                folium.GeoJson(lec_center_geom,  
+                folium.GeoJson(lec_center,  
                                 marker = folium.Marker(icon=folium.Icon(
                                     icon='ok-circle',
                                     color = 'green'
@@ -243,6 +249,11 @@ with form:
                                 )).add_to(m)
 
                 m.fit_bounds(m.get_bounds(), padding=(30, 30))
-                folium_static(m, width = 600)         
-                download_center(lec_center_geom, layer_name)  
+                folium_static(m, width = 600)  
+                # 
+                st.write('Largest Empty Circle Raidus (approximately for distance near the equator): ', round(lec_center['radius'].iloc[0]*111139* 10**(-3),2), ' km') 
+                # st.write('Largest Empty Circle Raidus: ', round(lec_center['radius'].iloc[0]*10**(-3),2), ' km') 
+                # st.write (haversine(103.609, 14.612, 106.098998559197867, 11.318869769511060))
+                # st.write (great_circle(103.609, 14.612, 106.098998559197867, 11.318869769511060))
+                download_center(lec_center, layer_name)  
                 download_lec(lec, layer_name) 
