@@ -83,6 +83,21 @@ def simplify(geom):
 
 def voronoi_polygon(source):  
     minx, miny, maxx, maxy = source.total_bounds
+    # st.write(minx, miny, maxx, maxy)
+    bound = Polygon([(minx, miny),
+                        (maxx, miny),
+                        (maxx, maxy),
+                        (minx, maxy)])
+    points = MultiPoint(source.geometry.to_list())
+    voronoi = voronoi_diagram(points , envelope=bound)
+    # st.write(voronoi.geoms)
+    voronoi_geometry  = {'geometry':voronoi.geoms}
+    target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
+    return target
+
+def voronoi_exploded_polygon(source):  
+    minx, miny, maxx, maxy = source.total_bounds
+    st.write(minx, miny, maxx, maxy)
     bound = Polygon([(minx, miny),
                         (maxx, miny),
                         (maxx, maxy),
@@ -102,24 +117,33 @@ def explodeLine(row):
         parts.append(LineString(part)) #Create a linestring and append to parts list
     return parts
 
+def explodePolygon(row):
+    """A function to return all segments of a Polygon as a list of Polygons"""
+    coords = row.geometry.coords #Create a list of all line node coordinates
+    parts = []
+    for part in zip(coords, coords[1:]): #For each start and end coordinate pair
+        parts.append(Polygon(part)) #Create a linestring and append to parts list
+    return parts
+
 def polygon_vertices(polygon):
     coords_exterior = list(polygon.exterior.coords)
     vertices = [Point(p[0], p[1]) for p in coords_exterior] 
-    # st.write(vertices)
+    st.write(vertices)
     return vertices
         
 def centerline_create(source, vertices):
+    
     # Densify Polygon
     # source = source.to_crs(3857) # to set max_segment_length in meters
     # st.write(source['geometry'])
-    source['geometry'] = source['geometry'].map(segmentize)       
+    # source['geometry'] = source['geometry'].map(segmentize)       
     
     # Extract Polygon's vertices
-    col = source.columns.tolist()
-    points = gpd.GeoDataFrame(columns=col)
-    for index, row in source.iterrows():
-        for j in list(row['geometry'].exterior.coords): 
-            points = points.append({'geometry':Point(j)},ignore_index=True)
+    # col = source.columns.tolist()
+    # points = gpd.GeoDataFrame(columns=col)
+    # for index, row in source.iterrows():
+    #     for j in list(row['geometry'].exterior.coords): 
+    #         points = points.append({'geometry':Point(j)},ignore_index=True)
     # Extract Polygon's vertices
     # st.write(list(source.exterior['geometry'].coords))
     # vertices = source.copy()
@@ -134,12 +158,16 @@ def centerline_create(source, vertices):
     #     all_coords.append(*coords)   
     # st.write(all_coords)
     
-    
-    voronoi_diagram = voronoi_polygon(points)
-    voronoi_diagram['geometry'] = voronoi_diagram.geometry.boundary
+    # if source.geometry.type == 'Polygon':
+    #     voronoi = voronoi_polygon(source)
+    #     voronoi['geometry'] = voronoi.geometry.boundary
+    # if source.geometry.type == 'MultiPolygon':
+    #     voronoi = voronoi_exploded_polygon(source)
+    #     voronoi['geometry'] = voronoi.geometry.boundary
 
+    voronoi = voronoi_polygon(vertices)
     # Explode Voronoi Diagram into line segments
-    voronoi_exploded = voronoi_diagram.copy()
+    voronoi_exploded = voronoi.copy()
     # voronoi_exploded = gpd.GeoDataFrame(data=voronoi_diagram, geometry='geometry', crs = source.crs)
     voronoi_exploded['geometry'] = voronoi_exploded.apply(lambda x: explodeLine(x), axis=1) #Create a list of all line segments
     voronoi_exploded = voronoi_exploded.explode('geometry') #Explode it so each segment becomes a row (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html)
@@ -159,8 +187,16 @@ def centerline_create(source, vertices):
 
 def centerline(source): 
     if (source.geometry.type == 'MultiPolygon').all():
-        # st.write('MultiPolygon')
+        st.write('MultiPolygon', source)
         source = source.explode(index_parts=False)
+        st.write('Exploded', source)
+        # source_exploded['geometry'] = source_exploded['geometry'].map(segmentize) 
+        # st.write ('segmentize', source_exploded['geometry'])
+        # source_exploded = source.copy()
+        # voronoi_exploded = gpd.GeoDataFrame(data=voronoi_diagram, geometry='geometry', crs = source.crs)
+        # voronoi_exploded['geometry'] = voronoi_exploded.apply(lambda x: explodeLine(x), axis=1) #Create a list of all line segments
+        # voronoi_exploded = voronoi_exploded.explode('geometry') #Explode it so each segment becomes a row (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html)
+        # voronoi_exploded = gpd.GeoDataFrame(data=voronoi_exploded, geometry='geometry', crs = source.crs )       
         source_vertices = source.copy()
         source_vertices['geometry'] = source_vertices.geometry.map(polygon_vertices) 
         center_line_singlepart = centerline_create(source, source_vertices)        
@@ -168,9 +204,12 @@ def centerline(source):
         return center_line
 
     elif (source.geometry.type == 'Polygon').all():
-        # st.write('Polygon')
+        st.write('Polygon', source)
+        # source['geometry'] = source['geometry'].map(segmentize) 
+        # st.write ('segmentize', source['geometry'])
         source_vertices = source.copy()
         source_vertices['geometry'] = source_vertices.geometry.map(polygon_vertices) 
+        # st.write (source_vertices)
         center_line = centerline_create(source, source_vertices)  
         return  center_line
 
@@ -179,7 +218,7 @@ form = st.form(key="center_line")
 with form:   
     url = st.text_input(
             "Enter a URL to a point dataset",
-            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon_centerline.geojson",
+            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/multipolygon_centerline.geojson",
         )
 
     uploaded_file = st.file_uploader(
