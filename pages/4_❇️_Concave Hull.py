@@ -82,7 +82,7 @@ def highlight_function(feature):
 
 def concave_hull_create(source): 
     source_dissolved = source.dissolve()
-    concavehull = source_dissolved.concave_hull(ratio=0.5, allow_holes=False)
+    concavehull = source_dissolved.concave_hull(ratio=0.3, allow_holes=True)
     return concavehull
 
 form = st.form(key="largest_empty_circle")
