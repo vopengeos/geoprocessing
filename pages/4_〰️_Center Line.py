@@ -7,7 +7,7 @@ import fiona, os
 from shapely.geometry import Point, MultiPoint, LineString, Polygon, LinearRing
 from shapely.ops import transform, voronoi_diagram
 from shapely.wkt import loads
-
+import numpy as np
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -75,12 +75,11 @@ def highlight_function(feature):
     # 'dashArray': '5, 5'
 }
 
-
 def segmentize(geom):  
-    return geom.segmentize(max_segment_length=2) # meters
+    return geom.segmentize(max_segment_length=2*10**(-5)) # meters
 
 def simplify(geom):  
-    return geom.simplify(0.1) # meters
+    return geom.simplify(0.1*10**(-5)) # meters
 
 def voronoi_polygon(source):  
     minx, miny, maxx, maxy = source.total_bounds
@@ -102,21 +101,41 @@ def explodeLine(row):
     for part in zip(coords, coords[1:]): #For each start and end coordinate pair
         parts.append(LineString(part)) #Create a linestring and append to parts list
     return parts
+
+def polygon_vertices(polygon):
+    coords_exterior = list(polygon.exterior.coords)
+    vertices = [Point(p[0], p[1]) for p in coords_exterior] 
+    st.write(vertices)
+    return vertices
         
-def centerline_create(source):
+def centerline_create(source, vertices):
     # Densify Polygon
-    source = source.to_crs(3857) # to set max_segment_length in meters
+    # source = source.to_crs(3857) # to set max_segment_length in meters
+    st.write(source['geometry'])
     source['geometry'] = source['geometry'].map(segmentize)       
     
     # Extract Polygon's vertices
-    col = source.columns.tolist()
-    points = gpd.GeoDataFrame(columns=col)
-    for index, row in source.iterrows():
-        for j in list(row['geometry'].exterior.coords): 
-            points = points.append({'geometry':Point(j)},ignore_index=True)
+    # col = source.columns.tolist()
+    # points = gpd.GeoDataFrame(columns=col)
+    # for index, row in source.iterrows():
+    #     for j in list(row['geometry'].exterior.coords): 
+    #         points = points.append({'geometry':Point(j)},ignore_index=True)
+    # Extract Polygon's vertices
+    # st.write(list(source.exterior['geometry'].coords))
+    # vertices = source.copy()
+    # vertices.geometry = vertices.geometry.apply(lambda x: MultiPoint(list(x.exterior.coords)))
 
     # Create Voronoi Polygon and convert to Polyline
-    voronoi_diagram = voronoi_polygon(points)
+    # g = [i for i in source.geometry]
+    # st.write(g)
+    # all_coords = []
+    # for b in g[0].boundary: # for first feature/row
+    #     coords = np.dstack(b.coords.xy).tolist()
+    #     all_coords.append(*coords)   
+    # st.write(all_coords)
+    
+    
+    voronoi_diagram = voronoi_polygon(vertices)
     voronoi_diagram['geometry'] = voronoi_diagram.geometry.boundary
 
     # Explode Voronoi Diagram into line segments
@@ -134,19 +153,25 @@ def centerline_create(source):
     centerline_candidates = centerline_candidates.to_crs(3857)
     centerline_candidates['geometry'] = centerline_candidates['geometry'].map(simplify)
     center_line = centerline_candidates.dissolve(by='index_right')
-    source = source.to_crs(4326)
-    center_line = center_line.to_crs(source.crs)
+    # source = source.to_crs(4326)
+    # center_line = center_line.to_crs(source.crs)
     return center_line
 
 def centerline(source): 
     if (source.geometry.type == 'MultiPolygon').all():
+        st.write('MultiPolygon')
         source = source.explode(index_parts=False)
-        center_line_singlepart = centerline_create(source)        
+        source_vertices = source.copy()
+        source_vertices['geometry'] = source_vertices.geometry.map(polygon_vertices) 
+        center_line_singlepart = centerline_create(source, source_vertices)        
         center_line = center_line_singlepart.dissolve(by = center_line_singlepart.index)
         return center_line
 
     elif (source.geometry.type == 'Polygon').all():
-        center_line = centerline_create(source)  
+        st.write('Polygon')
+        source_vertices = source.copy()
+        source_vertices['geometry'] = source_vertices.geometry.map(polygon_vertices) 
+        center_line = centerline_create(source, source_vertices)  
         return  center_line
 
 

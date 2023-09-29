@@ -106,12 +106,6 @@ def voronoi_polygon(source):
 
 
 def splitpolygon(source, parts, random_points):	
-    #target = source
-    # target = random_points_in_polygon(source)
-    # target['geometry'] = target['geometry'].map(random_points_in_polygon)
-    # target = []
-    # for i in source.index:
-    # target = source
     target = random_points_in_polygon(source.iloc[0].geometry, random_points)
     a=pd.Series(target['geometry'].apply(lambda p: p.x))
     b=pd.Series(target['geometry'].apply(lambda p: p.y))
@@ -134,43 +128,6 @@ def splitpolygon(source, parts, random_points):
     target = voronoi_polygon(target)
     target = gpd.overlay(source, target, how='intersection')
     return target              
-    # target['geometry'] = target['geometry'].map(random_points_in_polygon)
-    #     target.append(random_points_in_polygon(source.iloc[i].geometry, 100))
-    # st.write(points)
-    # target['geometry'] = target['geometry'].map(sample_random_geo)
-    # st.write(target)
-    # final = gpd.GeoDataFrame(geometry= MultiPointtarget,crs =source.crs)
-    # parameters2 =  {'INPUT': points['OUTPUT'],
-    #             'CLUSTERS' :parts,
-    #             'FIELD_NAME' : 'CLUSTER_ID',
-    #             'SIZE_FIELD_NAME' : 'CLUSTER_SIZE',
-    #             'OUTPUT' : 'memory:kmeansclustering'} 
-    # kmeansclustering = processing.run('qgis:kmeansclustering', parameters2)
-
-    # parameters3 = {'INPUT': kmeansclustering['OUTPUT'],                  
-    #             'GROUP_BY' : 'CLUSTER_ID',
-    #             'AGGREGATES' : [],
-    #             'OUTPUT' : 'memory:aggregate'} 
-    # aggregate = processing.run('qgis:aggregate',parameters3)
-
-    # parameters4 = {'INPUT': aggregate['OUTPUT'],                  
-    #             'ALL_PARTS' : False,
-    #             'OUTPUT' : 'memory:centroids'} 
-    # centroids = processing.run('qgis:centroids',parameters4)
-
-    # parameters5 = {'INPUT': centroids['OUTPUT'],                  
-    #             'BUFFER' : 1000,
-    #             'OUTPUT' : 'memory:voronoi'} 
-    # voronoi = processing.run('qgis:voronoipolygons',parameters5)
-
-    # parameters6 = {'INPUT': layer,  
-    #             'OVERLAY':   voronoi['OUTPUT'],           
-    #             'OUTPUT' : 'TEMPORARY_OUTPUT'
-    #         } 
-    # intersection = processing.run('qgis:intersection',parameters6)
-    # output = intersection['OUTPUT']
-    # return output
-
 
 form = st.form(key="split_polygon")
 with form:   
