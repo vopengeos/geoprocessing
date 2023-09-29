@@ -82,7 +82,7 @@ def highlight_function(feature):
 
 def concave_hull_create(source): 
     source_dissolved = source.dissolve()
-    concavehull = source_dissolved.concave_hull(ratio=0.0, allow_holes=False)
+    concavehull = source_dissolved.concave_hull(ratio=0.5, allow_holes=False)
     return concavehull
 
 form = st.form(key="largest_empty_circle")
@@ -148,16 +148,16 @@ with form:
                                 highlight_function=highlight_function                                   
                                 ).add_to(m)
                 
-                folium.GeoJson(source,  
-                                marker = folium.Marker(icon=folium.Icon(
-                                    icon='ok-circle',
-                                    color = 'purple'
-                                    )),  
-                                style_function = style_function, 
-                                highlight_function=highlight_function,                                   
-                                popup = folium.GeoJsonPopup(
-                                fields = fields
-                                )).add_to(m)
+                # folium.GeoJson(source,  
+                #                 marker = folium.Marker(icon=folium.Icon(
+                #                     icon='ok-circle',
+                #                     color = 'purple'
+                #                     )),  
+                #                 style_function = style_function, 
+                #                 highlight_function=highlight_function,                                   
+                #                 popup = folium.GeoJsonPopup(
+                #                 fields = fields
+                #                 )).add_to(m)
 
                 m.fit_bounds(m.get_bounds(), padding=(30, 30))
                 folium_static(m, width = 600)  
