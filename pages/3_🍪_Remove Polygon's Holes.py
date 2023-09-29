@@ -198,7 +198,7 @@ with form:
                     m = folium.Map(tiles='stamentoner', location = [center_lat, center_lon], zoom_start=4)
                     folium.GeoJson(target,  
                                    style_function = style_function, 
-                                   highlight_function=highlight_function,
+                                #    highlight_function=highlight_function,
                                    marker = folium.Marker(icon=folium.Icon(
                                      icon='ok-circle',
                                      color = 'purple'
