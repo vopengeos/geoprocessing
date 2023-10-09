@@ -1,7 +1,7 @@
 import folium
 from folium.plugins import Draw, LocateControl
 import streamlit as st
-from streamlit_folium import st_folium
+from streamlit_folium import st_folium, folium_static
 from folium.plugins import MousePosition
 import routingpy as rp
 import pandas as pd
@@ -23,23 +23,44 @@ st.sidebar.info(
 st.title("Routing Engines")
 st.write('Popular routing engines with routingpy')
 
-url = st.text_input(
-        "Enter a CSV URL with Latitude and Longitude Columns",
-        'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps.csv'
-    )
-uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
-lat_column_index, lon_column_index = 0,0     
-if url:   
-    df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
-if uploaded_file:        
-    df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
+form = st.form(key="latlon_calculator")
+with form: 
+    url = st.text_input(
+            "Enter a CSV URL with Latitude and Longitude Columns",
+            'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps.csv'
+        )
+    uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
+    lat_column_index, lon_column_index = 0,0     
+    if url:   
+        df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
+    if uploaded_file:        
+        df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
+    # for column in df.columns:
+    #     if (column.lower() == 'y' or column.lower().startswith("lat") or column.lower().startswith("n")):
+    #         lat_column_index=df.columns.get_loc(column)
+    #     if (column.lower() == 'x' or column.lower().startswith("ln") or column.lower().startswith("lon") or column.lower().startswith("e") ):
+    #         lon_column_index=df.columns.get_loc(column)
+    st.write('First point:', str(df.iloc[0].latitude) + ', ' + str(df.iloc[0].longitude))
+    st.write('Last point:', str(df.iloc[-1].latitude) + ', ' + str(df.iloc[-1].longitude))
+    m = folium.Map(location=[10.775282967747945, 106.70633939229438],
+                tiles='stamenterrain',
+                zoom_start=14,
+                control_scale=True
+                )
+    for index, row in df.iterrows():
+        popup = row.to_frame().to_html()
+        folium.Marker([row['latitude'], row['longitude']], 
+                    popup=popup,
+                    icon=folium.Icon(icon='cloud')
+                    ).add_to(m)        
+        
+    m.fit_bounds(m.get_bounds(), padding=(30, 30))
+    folium_static(m, width = 1200)
 
-for column in df.columns:
-        if (column.lower() == 'y' or column.lower().startswith("lat") or column.lower().startswith("n")):
-            lat_column_index=df.columns.get_loc(column)
-        if (column.lower() == 'x' or column.lower().startswith("ln") or column.lower().startswith("lon") or column.lower().startswith("e") ):
-            lon_column_index=df.columns.get_loc(column)
+    submitted = st.form_submit_button("Shortest Path")    
 
+if submitted:
+     pass
 # def get_pos(lat, lng):
 #     return lat, lng
 
