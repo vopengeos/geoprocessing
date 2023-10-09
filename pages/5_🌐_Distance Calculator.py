@@ -9,6 +9,10 @@ from datetime import datetime
 import geopy.distance
 from becalib.distance_const import *
 from routingpy import OSRM
+import geopandas as gdp
+from shapely.geometry import Point, LineString
+from folium.plugins import Fullscreen
+import streamlit_ext as ste
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -28,6 +32,8 @@ st.title("Distance Calculator")
 st.write('Distance Calculator for GPS Track Logs')
 start_time = '2023-01-01 00:00:00'
 end_time = '2023-12-31 00:00:00'
+MAX_ALLOWED_TIME_GAP = 300  # seconds
+MAX_ALLOWED_DISTANCE_GAP = 10000000000000  # meters
 
 def preProcessing(data, start_time, end_time, formular):    
     timestamp_format = "%Y-%m-%d %H:%M:%S"
@@ -76,10 +82,20 @@ def traveledDistance(data):
             distance_temp = route.distance
             # distance_temp = 0
         # Access the route properties with .geometry, .duration, .distance                  
-        print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
+        # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
         
     return round(totalDistance/1000, 3)
+
+def download_geojson(gdf, layer_name):
+    if not gdf.empty:        
+        geojson = gdf.to_json()  
+        ste.download_button(
+            label="Download GeoJSON",
+            file_name= layer_name+ '.geojson',
+            mime="application/json",
+            data=geojson
+        ) 
 
 
 form = st.form(key="latlon_calculator")
@@ -99,13 +115,20 @@ with form:
     #         lat_column_index=df.columns.get_loc(column)
     #     if (column.lower() == 'x' or column.lower().startswith("ln") or column.lower().startswith("lon") or column.lower().startswith("e") ):
     #         lon_column_index=df.columns.get_loc(column)
-    st.write('First point:', str(df.iloc[0].latitude) + ', ' + str(df.iloc[0].longitude))
-    st.write('Last point:', str(df.iloc[-1].latitude) + ', ' + str(df.iloc[-1].longitude))
-    m = folium.Map(location=[10.775282967747945, 106.70633939229438],
+    # st.write('First point:', str(df.iloc[0].latitude) + ', ' + str(df.iloc[0].longitude))
+    # st.write('Last point:', str(df.iloc[-1].latitude) + ', ' + str(df.iloc[-1].longitude))
+    m = folium.Map(max_zoom = 21,
                 tiles='stamenterrain',
                 zoom_start=14,
                 control_scale=True
                 )
+    Fullscreen(                                                         
+            position                = "topright",                                   
+            title                   = "Open full-screen map",                       
+            title_cancel            = "Close full-screen map",                      
+            force_separate_button   = True,                                         
+        ).add_to(m)
+
     for index, row in df.iterrows():
         popup = row.to_frame().to_html()
         folium.Marker([row['latitude'], row['longitude']], 
@@ -115,7 +138,7 @@ with form:
         
     m.fit_bounds(m.get_bounds(), padding=(30, 30))
     folium_static(m, width = 1200)
-
+    # download_geojson(df, 'nodes')
     submitted = st.form_submit_button("Distance Calculation")    
 
 
@@ -126,7 +149,17 @@ def CalculateDistance(data, groupBy):
 
     return result.values[0]
 
+
 if submitted:
-    data = preProcessing(df, start_time, end_time, 'new')
+    df = preProcessing(df, start_time, end_time, 'new') 
     groupBy = ['driver', 'date_string']
     st.write('Distance traveled:', str(CalculateDistance(df, groupBy))) 
+    
+    geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
+    geo_df = gdp.GeoDataFrame(df, geometry=geometry)
+    # aggregate these points with the GrouBy
+    geo_df = geo_df.groupby(['trackerId'])['geometry'].apply(lambda x: LineString(x.tolist()))
+    geo_df = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
+    folium.GeoJson(geo_df).add_to(m)
+    folium_static(m, width = 1200)
+    download_geojson(geo_df, 'track')
