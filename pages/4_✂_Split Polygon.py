@@ -195,4 +195,4 @@ with form:
    
                     m.fit_bounds(m.get_bounds(), padding=(30, 30))
                     folium_static(m, width = 600)         
-                    download_geojson(target, layer_name)   
+                    download_geojson(target, layer_name)
