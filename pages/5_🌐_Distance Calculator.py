@@ -34,6 +34,25 @@ start_time = '2023-01-01 00:00:00'
 end_time = '2023-12-31 00:00:00'
 MAX_ALLOWED_TIME_GAP = 300  # seconds
 MAX_ALLOWED_DISTANCE_GAP = 10000000000000  # meters
+col1, col2 = st.columns(2)
+
+def style_function(feature):
+    return {
+        'fillColor': '#b1ddf9',
+        'fillOpacity': 0.5,
+        'color': 'blue',
+        'weight': 2,
+        # 'dashArray': '5, 5'
+    }
+
+def highlight_function(feature):   
+    return {
+    'fillColor': '#ffff00',
+    'fillOpacity': 0.8,
+    'color': '#ffff00',
+    'weight': 4,
+    # 'dashArray': '5, 5'
+}
 
 def preProcessing(data, start_time, end_time, formular):    
     timestamp_format = "%Y-%m-%d %H:%M:%S"
@@ -53,12 +72,31 @@ def preProcessing(data, start_time, end_time, formular):
     filtered = filtered.loc[mask]
     
     filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
-
     print('First point:', str(data.iloc[0].latitude) + ', ' + str(data.iloc[0].longitude))
     print('Last point:', str(data.iloc[-1].latitude) + ', ' + str(data.iloc[-1].longitude))
+    filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
+    return filtered
 
-    filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date
+def preProcessing2(data, start_time, end_time, formular):    
+    timestamp_format = "%Y-%m-%d %H:%M:%S"
+    start = datetime.strptime(start_time, timestamp_format)
+    #print(start)
+    end = datetime.strptime(end_time, timestamp_format)
+    #print(end)
+    filtered = data    
+    filtered['datetime'] = pd.to_datetime(filtered['datetime'])
+
+    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    if formular == 'old': 
+        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
     
+    filtered = filtered.loc[mask]
+    
+    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+    print('First point:', str(data.iloc[0].latitude) + ', ' + str(data.iloc[0].longitude))
+    print('Last point:', str(data.iloc[-1].latitude) + ', ' + str(data.iloc[-1].longitude))
+    filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
+    # st.write(filtered)
     return filtered
 
 def traveledDistance(data):
@@ -97,69 +135,113 @@ def download_geojson(gdf, layer_name):
             data=geojson
         ) 
 
+with col1:
+    form = st.form(key="distance_calculator")
+    with form: 
+        url = st.text_input(
+                "Enter a CSV URL with Latitude and Longitude Columns",
+                'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps.csv'
+            )
+        uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
+        lat_column_index, lon_column_index = 0,0     
+        if url:   
+            df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
+        if uploaded_file:        
+            df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
+        m = folium.Map(max_zoom = 21,
+                    tiles='stamenterrain',
+                    zoom_start=14,
+                    control_scale=True
+                    )
+        Fullscreen(                                                         
+                position                = "topright",                                   
+                title                   = "Open full-screen map",                       
+                title_cancel            = "Close full-screen map",                      
+                force_separate_button   = True,                                         
+            ).add_to(m)
 
-form = st.form(key="latlon_calculator")
-with form: 
-    url = st.text_input(
-            "Enter a CSV URL with Latitude and Longitude Columns",
-            'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps.csv'
-        )
-    uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
-    lat_column_index, lon_column_index = 0,0     
-    if url:   
-        df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
-    if uploaded_file:        
-        df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
-    # for column in df.columns:
-    #     if (column.lower() == 'y' or column.lower().startswith("lat") or column.lower().startswith("n")):
-    #         lat_column_index=df.columns.get_loc(column)
-    #     if (column.lower() == 'x' or column.lower().startswith("ln") or column.lower().startswith("lon") or column.lower().startswith("e") ):
-    #         lon_column_index=df.columns.get_loc(column)
-    # st.write('First point:', str(df.iloc[0].latitude) + ', ' + str(df.iloc[0].longitude))
-    # st.write('Last point:', str(df.iloc[-1].latitude) + ', ' + str(df.iloc[-1].longitude))
-    m = folium.Map(max_zoom = 21,
-                tiles='stamenterrain',
-                zoom_start=14,
-                control_scale=True
-                )
-    Fullscreen(                                                         
-            position                = "topright",                                   
-            title                   = "Open full-screen map",                       
-            title_cancel            = "Close full-screen map",                      
-            force_separate_button   = True,                                         
-        ).add_to(m)
-
-    for index, row in df.iterrows():
-        popup = row.to_frame().to_html()
-        folium.Marker([row['latitude'], row['longitude']], 
-                    popup=popup,
-                    icon=folium.Icon(icon='cloud')
-                    ).add_to(m)        
-        
-    m.fit_bounds(m.get_bounds(), padding=(30, 30))
-    folium_static(m, width = 1200)
-    # download_geojson(df, 'nodes')
-    submitted = st.form_submit_button("Distance Calculation")    
+        for index, row in df.iterrows():
+            popup = row.to_frame().to_html()
+            folium.Marker([row['latitude'], row['longitude']], 
+                        popup=popup,
+                        icon=folium.Icon(icon='cloud')
+                        ).add_to(m)        
+            
+        m.fit_bounds(m.get_bounds(), padding=(30, 30))
+        folium_static(m, width = 600)
+        # download_geojson(df, 'nodes')
+        submitted = st.form_submit_button("Calculate Distance")    
 
 
-def CalculateDistance(data, groupBy):
-        
+def CalculateDistance(data, groupBy):        
     grouped = data.groupby(groupBy)
     result = grouped.apply(traveledDistance)
-
     return result.values[0]
 
 
 if submitted:
-    df = preProcessing(df, start_time, end_time, 'new') 
-    groupBy = ['driver', 'date_string']
-    st.write('Distance traveled:', str(CalculateDistance(df, groupBy))) 
-    
-    geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
-    geo_df = gdp.GeoDataFrame(df, geometry=geometry)
-    # aggregate these points with the GrouBy
-    geo_df = geo_df.groupby(['trackerId'])['geometry'].apply(lambda x: LineString(x.tolist()))
-    geo_df = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
-    folium.GeoJson(geo_df).add_to(m)
-    folium_static(m, width = 1200)
-    download_geojson(geo_df, 'track')
+    with col2:
+        st.write('Step 1/2: Preprocessing')
+        df = preProcessing2(df, start_time, end_time, 'new') 
+        df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        df['date_string'] = df['date_string'].astype(str)
+
+        geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
+        trackpoints_cleaned = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')
+        trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry')]
+
+        # aggregate these points with the GrouBy
+        # folium.GeoJson(geo_df_cleaned).add_to(m)
+        # folium_static(m, width = 800)
+        # download_geojson(geo_df_cleaned, 'track_points_cleaned')
+
+        st.write('Step 2/2: Distance Calculation')
+        groupBy = ['driver', 'date_string']
+        st.write('Distance traveled:', str(CalculateDistance(df, groupBy)), ' km') 
+
+        geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
+        geo_df = gdp.GeoDataFrame(df, geometry=geometry)
+        # aggregate these points with the GrouBy
+        geo_df = geo_df.groupby(['driver', 'date_string'])['geometry'].apply(lambda x: LineString(x.tolist()))
+        track_distance = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
+
+        center = track_distance.dissolve().centroid
+        center_lon, center_lat = center.x, center.y        
+        m = folium.Map(max_zoom = 21,
+                        tiles='stamentoner',
+                        location = [center_lat, center_lon],
+                        zoom_start=14,
+                        control_scale=True
+                        )
+        Fullscreen(                                                         
+                position                = "topright",                                   
+                title                   = "Open full-screen map",                       
+                title_cancel            = "Close full-screen map",                      
+                force_separate_button   = True,                                         
+            ).add_to(m)
+
+        folium.GeoJson(trackpoints_cleaned, name = 'track_points_cleaned',  
+                        style_function = style_function, 
+                        highlight_function=highlight_function,
+                        marker = folium.Marker(icon=folium.Icon(
+                                    icon='ok-circle',
+                                    color = 'purple',
+                                    size = 5
+                                    )),     
+                        # marker =  folium.CircleMarker(fill=True),
+                        # zoom_on_click = True,
+                        popup = folium.GeoJsonPopup(
+                        fields = trackpoints_cleaned_fields
+                        )).add_to(m)
+
+        folium.GeoJson(track_distance, name = 'track_distance',  
+                        style_function = style_function, 
+                        highlight_function=highlight_function,
+                        # popup = folium.GeoJsonPopup(
+                        # fields = tracpoints_cleaned_fields
+                        # )
+                        ).add_to(m)
+
+        m.fit_bounds(m.get_bounds(), padding=(30, 30))
+        folium_static(m, width = 600)
+        download_geojson(track_distance, 'track')
