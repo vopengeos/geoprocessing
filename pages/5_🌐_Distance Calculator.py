@@ -13,7 +13,7 @@ import geopandas as gdp
 from shapely.geometry import Point, LineString
 from folium.plugins import Fullscreen
 import streamlit_ext as ste
-from pykalman import KalmanFilter
+# from pykalman import KalmanFilter
 import numpy as np
 
 st.set_page_config(layout="wide")
@@ -79,17 +79,17 @@ def preProcessing(data, start_time, end_time, formular):
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     return filtered
 
-def smooth(points):
-    kf = KalmanFilter(
-        initial_state_mean = points.iloc[0],
-        observation_covariance = np.diag([0.5, 0.5]) ** 2, # TODO: shouldn't be zero
-        transition_covariance = np.diag([0.3, 0.3]) ** 2, # TODO: shouldn't be zero
-        transition_matrices = [[1, 0], [0, 1]] # TODO
-    )
-    kalman_smoothed, _ = kf.smooth(points)
-    df = pd.DataFrame(data=kalman_smoothed, columns=['latitude', 'longitude'])
-    st.write(df)
-    return df
+# def smooth(points):
+#     kf = KalmanFilter(
+#         initial_state_mean = points.iloc[0],
+#         observation_covariance = np.diag([0.5, 0.5]) ** 2, # TODO: shouldn't be zero
+#         transition_covariance = np.diag([0.3, 0.3]) ** 2, # TODO: shouldn't be zero
+#         transition_matrices = [[1, 0], [0, 1]] # TODO
+#     )
+#     kalman_smoothed, _ = kf.smooth(points)
+#     df = pd.DataFrame(data=kalman_smoothed, columns=['latitude', 'longitude'])
+#     st.write(df)
+#     return df
     
 
 def preProcessing2(data, start_time, end_time, formular):    
@@ -197,7 +197,7 @@ def CalculateDistance(data, groupBy):
 if submitted:
     with col2:
         st.write('Step 1/2: Preprocessing')
-        df = smooth(df)
+        # df = smooth(df)
         df = preProcessing2(df, start_time, end_time, 'new') 
         df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df['date_string'] = df['date_string'].astype(str)
