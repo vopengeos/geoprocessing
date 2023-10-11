@@ -98,8 +98,11 @@ def preProcessing2(data, start_time, end_time, formular):
     #print(start)
     end = datetime.strptime(end_time, timestamp_format)
     #print(end)
-    filtered = data    
-    filtered['datetime'] = pd.to_datetime(filtered['datetime'])
+    filtered = data 
+    st.write(data.dtypes) 
+    filtered['datetime'] = datetime.strptime(str(filtered['datetime']), timestamp_format)
+    # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
+
 
     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
     if formular == 'old': 
@@ -164,6 +167,7 @@ with col1:
             df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
         if uploaded_file:        
             df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
+        st.write(df.dtypes)
         m = folium.Map(max_zoom = 21,
                     tiles='stamenterrain',
                     zoom_start=14,
