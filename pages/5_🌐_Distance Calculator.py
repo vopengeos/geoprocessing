@@ -92,29 +92,54 @@ def preProcessing(data, start_time, end_time, formular):
 #     st.write(df)
 #     return df
     
+def removejumping(data): 
+    st.write('before removing jumping', len(data))
+    filtered = data
+    outliers_index = []
+    count = 0
+    for i in range (1, len(data)):
+        time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        distance_diff = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
+        velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h        
+        if velocity >= 100:
+            st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
+            # filtered = filtered.drop([i])
+            outliers_index.append(data.iloc[i].datetime)
+            count+=1
+    st.write('deleted track points: ', count)
+    st.write(outliers_index)
+    filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
+    st.write('after removing jumping', len(filtered))
+
+    return filtered
 
 
 def preProcessing2(data, start_time, end_time, formular):
     st.write('before delete duplicates: ', len(data))   
-    st.write(data) 
     timestamp_format = "%Y-%m-%d %H:%M:%S"
     start = datetime.strptime(start_time, timestamp_format)
     #print(start)
     end = datetime.strptime(end_time, timestamp_format)
     #print(end)
     filtered = data 
-
+    filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
     ############## Drop duplicate track points (the same datetime)
     filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
+    ############## Drop duplicate track points (the same latitude and longitude)
+    filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first')
+    
     st.write('after delete duplicates: ', len(filtered))    
 
+    ############## Drop "jumping" track points
+    filtered = removejumping(filtered)
+
     # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
-    filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
+    
+    
+    # MotionActivity filter may delete "moving" track points
     # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
     # if formular == 'old': 
     #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
-    
-    # # # filtered = filtered.loc[mask]
     # filtered = filtered.loc[mask]
     
     filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
@@ -124,26 +149,6 @@ def preProcessing2(data, start_time, end_time, formular):
     # st.write(filtered)
     return filtered
 
-def removejumping(data): 
-    st.write('before removing jumping', len(data))
-    filtered = data
-    for i in range (1, len(data)):
-        timediff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
-        distance_diff = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
-        if timediff < MAX_ALLOWED_TIME_GAP :
-            # #distance_temp = 0
-            # coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude], ]
-            # api = OSRM(base_url="https://router.project-osrm.org/")
-            # # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
-            # route = api.directions(
-            # profile='car',
-            # locations= coor       
-            # )
-            distance_temp = 0
-        totalDistance += distance_temp
-    st.write('after removing jumping', len(filtered))
-
-    return filtered
 
 
 def traveledDistance(data):
@@ -155,16 +160,18 @@ def traveledDistance(data):
         distance_temp = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
         
         if timediff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
-            #distance_temp = 0
-            coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude], ]
-            api = OSRM(base_url="https://router.project-osrm.org/")
-            # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
-            route = api.directions(
-            profile='car',
-            locations= coor       
-            )
-            # distance_temp = route.distance
-            distance_temp = 0
+            # #distance_temp = 0
+            try:
+                coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude], ]
+                api = OSRM(base_url="https://router.project-osrm.org/")
+                # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
+                route = api.directions(
+                profile='car',
+                locations= coor       
+                )
+                distance_temp = route.distance
+            except:
+                pass
         # Access the route properties with .geometry, .duration, .distance                  
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
@@ -216,9 +223,10 @@ with col1:
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
         folium_static(m, width = 600)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
-        trackpoints_origin = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')
+        trackpoints_origin = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')        
         download_geojson(trackpoints_origin, 'origin track points')
         submitted = st.form_submit_button("Calculate Distance")    
+    st.write('origin: ', df)
 
 
 def CalculateDistance(data, groupBy):        
@@ -234,7 +242,6 @@ if submitted:
         df = preProcessing2(df, start_time, end_time, 'new') 
         df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df['date_string'] = df['date_string'].astype(str)
-        st.write(df)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         trackpoints_cleaned = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')
         trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry')]
@@ -295,3 +302,5 @@ if submitted:
         folium_static(m, width = 600)
         download_geojson(trackpoints_cleaned, 'track_points_cleaned')
         download_geojson(track_distance, 'track')
+        st.write('cleaned: ', trackpoints_cleaned)      
+
