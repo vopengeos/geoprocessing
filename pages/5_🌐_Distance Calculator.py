@@ -32,8 +32,8 @@ st.sidebar.info(
 )
 st.title("Distance Calculator")
 st.write('Distance Calculator for GPS Track Logs')
-# start_time = '2023-01-01 00:00:00'
-start_time = '2019-01-01 00:00:00'
+start_time = '2023-01-01 00:00:00'
+# start_time = '2019-01-01 00:00:00'
 end_time = '2023-12-31 00:00:00'
 MAX_ALLOWED_TIME_GAP = 300  # seconds
 MAX_ALLOWED_DISTANCE_GAP = 10000000000000  # meters
@@ -93,22 +93,29 @@ def preProcessing(data, start_time, end_time, formular):
 #     return df
     
 
-def preProcessing2(data, start_time, end_time, formular):    
+
+def preProcessing2(data, start_time, end_time, formular):
+    st.write('before delete duplicates: ', len(data))   
+    st.write(data) 
     timestamp_format = "%Y-%m-%d %H:%M:%S"
     start = datetime.strptime(start_time, timestamp_format)
     #print(start)
     end = datetime.strptime(end_time, timestamp_format)
     #print(end)
     filtered = data 
+
+    ############## Drop duplicate track points (the same datetime)
+    filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
+    st.write('after delete duplicates: ', len(filtered))    
+
+    # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
-
-
-    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    if formular == 'old': 
-        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
+    # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    # if formular == 'old': 
+    #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
     
+    # # # filtered = filtered.loc[mask]
     # filtered = filtered.loc[mask]
-    filtered = filtered.loc[mask]
     
     filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     print('First point:', str(data.iloc[0].latitude) + ', ' + str(data.iloc[0].longitude))
@@ -117,9 +124,30 @@ def preProcessing2(data, start_time, end_time, formular):
     # st.write(filtered)
     return filtered
 
+def removejumping(data): 
+    st.write('before removing jumping', len(data))
+    filtered = data
+    for i in range (1, len(data)):
+        timediff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        distance_diff = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
+        if timediff < MAX_ALLOWED_TIME_GAP :
+            # #distance_temp = 0
+            # coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude], ]
+            # api = OSRM(base_url="https://router.project-osrm.org/")
+            # # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
+            # route = api.directions(
+            # profile='car',
+            # locations= coor       
+            # )
+            distance_temp = 0
+        totalDistance += distance_temp
+    st.write('after removing jumping', len(filtered))
+
+    return filtered
+
+
 def traveledDistance(data):
     totalDistance = 0
-    coordinates = []
     for i in range (1, len(data)):
         timediff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
@@ -135,8 +163,8 @@ def traveledDistance(data):
             profile='car',
             locations= coor       
             )
-            distance_temp = route.distance
-            # distance_temp = 0
+            # distance_temp = route.distance
+            distance_temp = 0
         # Access the route properties with .geometry, .duration, .distance                  
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
@@ -147,7 +175,7 @@ def download_geojson(gdf, layer_name):
     if not gdf.empty:        
         geojson = gdf.to_json()  
         ste.download_button(
-            label="Download GeoJSON",
+            label="Download " +  layer_name,
             file_name= layer_name+ '.geojson',
             mime="application/json",
             data=geojson
@@ -187,7 +215,9 @@ with col1:
             
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
         folium_static(m, width = 600)
-        # download_geojson(df, 'nodes')
+        geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
+        trackpoints_origin = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')
+        download_geojson(trackpoints_origin, 'origin track points')
         submitted = st.form_submit_button("Calculate Distance")    
 
 
@@ -263,4 +293,5 @@ if submitted:
 
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
         folium_static(m, width = 600)
+        download_geojson(trackpoints_cleaned, 'track_points_cleaned')
         download_geojson(track_distance, 'track')

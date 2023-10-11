@@ -123,6 +123,8 @@ with col1:
             df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
         if uploaded_file:        
             df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
+        
+        df = df.sort_values('datetime').reset_index().drop('index', axis=1)
         # for column in df.columns:
         #     if (column.lower() == 'y' or column.lower().startswith("lat") or column.lower().startswith("n")):
         #         lat_column_index=df.columns.get_loc(column)
