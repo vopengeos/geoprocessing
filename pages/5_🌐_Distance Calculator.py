@@ -32,7 +32,8 @@ st.sidebar.info(
 )
 st.title("Distance Calculator")
 st.write('Distance Calculator for GPS Track Logs')
-start_time = '2023-01-01 00:00:00'
+# start_time = '2023-01-01 00:00:00'
+start_time = '2019-01-01 00:00:00'
 end_time = '2023-12-31 00:00:00'
 MAX_ALLOWED_TIME_GAP = 300  # seconds
 MAX_ALLOWED_DISTANCE_GAP = 10000000000000  # meters
@@ -99,7 +100,6 @@ def preProcessing2(data, start_time, end_time, formular):
     end = datetime.strptime(end_time, timestamp_format)
     #print(end)
     filtered = data 
-    st.write(data.dtypes) 
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
 
 
@@ -158,7 +158,7 @@ with col1:
     with form: 
         url = st.text_input(
                 "Enter a CSV URL with Latitude and Longitude Columns",
-                'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps.csv'
+                'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps_noise.csv'
             )
         uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
         lat_column_index, lon_column_index = 0,0     
@@ -166,7 +166,6 @@ with col1:
             df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
         if uploaded_file:        
             df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
-        st.write(df.dtypes)
         m = folium.Map(max_zoom = 21,
                     tiles='stamenterrain',
                     zoom_start=14,
@@ -205,7 +204,7 @@ if submitted:
         df = preProcessing2(df, start_time, end_time, 'new') 
         df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df['date_string'] = df['date_string'].astype(str)
-
+        st.write(df)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         trackpoints_cleaned = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')
         trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry')]
