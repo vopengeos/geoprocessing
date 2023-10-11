@@ -173,8 +173,7 @@ def preProcessing2(data, start_time, end_time, formular):
     # if formular == 'old': 
     #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
     # filtered = filtered.loc[mask]
-    print('First point:', str(data.iloc[0].latitude) + ', ' + str(data.iloc[0].longitude))
-    print('Last point:', str(data.iloc[-1].latitude) + ', ' + str(data.iloc[-1].longitude))
+
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     # st.write(filtered)
     return filtered
