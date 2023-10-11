@@ -97,21 +97,45 @@ def removejumping(data):
     filtered = data
     outliers_index = []
     count = 0
-    for i in range (1, len(data)):
+    for i in range (1, len(filtered)):
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
-        distance_diff = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
+        distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h        
-        if velocity >= 100:
+        if velocity > 70: #km/h        
             st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
             # filtered = filtered.drop([i])
-            outliers_index.append(data.iloc[i].datetime)
+            outliers_index.append(str(data.iloc[i].datetime))            
             count+=1
     st.write('deleted track points: ', count)
-    st.write(outliers_index)
+    # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
     st.write('after removing jumping', len(filtered))
-
+    st.write(filtered)
     return filtered
+
+# def add_path_nodes(data): 
+#     st.write('before add_path_nodes', len(data))
+#     count = 0
+#     geometries = []
+#     filtered = data
+#     for i in range (1, len(filtered)):
+#         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+#         distance_diff = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
+#         velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h        
+#         if velocity > 70:
+#             coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude], ]
+#             api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
+#             # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
+#             route = api.directions(
+#             profile='car',
+#             locations= coor       
+#             )
+#             geometries.append(route.geometry)
+#     st.write('shortest path geometries: ', geometries)
+#     st.write('add track points: ', count)
+#     st.write('after add_path_nodes', len(filtered))
+#     return filtered
+
 
 
 def preProcessing2(data, start_time, end_time, formular):
@@ -123,15 +147,23 @@ def preProcessing2(data, start_time, end_time, formular):
     #print(end)
     filtered = data 
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
+    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     ############## Drop duplicate track points (the same datetime)
     filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
+    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     ############## Drop duplicate track points (the same latitude and longitude)
     filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first')
-    
+    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     st.write('after delete duplicates: ', len(filtered))    
+    # st.write(filtered)
 
     ############## Drop "jumping" track points
     filtered = removejumping(filtered)
+    filtered = filtered.sort_values('datetime').reset_index()
+    ############## add_path_nodes
+    # filtered = add_path_nodes(filtered)
+
 
     # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     
@@ -141,8 +173,6 @@ def preProcessing2(data, start_time, end_time, formular):
     # if formular == 'old': 
     #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
     # filtered = filtered.loc[mask]
-    
-    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     print('First point:', str(data.iloc[0].latitude) + ', ' + str(data.iloc[0].longitude))
     print('Last point:', str(data.iloc[-1].latitude) + ', ' + str(data.iloc[-1].longitude))
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
@@ -154,16 +184,18 @@ def preProcessing2(data, start_time, end_time, formular):
 def traveledDistance(data):
     totalDistance = 0
     for i in range (1, len(data)):
-        timediff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         # distance_temp = haversine(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
-        distance_temp = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
-        
-        if timediff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
+        distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+        velocity =  (distance_temp*0.001)/(time_diff/3600) #km/h        
+        if velocity > 70: #km/h 
+        # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
             # #distance_temp = 0
+            # st.write(data.iloc[i].datetime)
             try:
-                coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude], ]
-                api = OSRM(base_url="https://router.project-osrm.org/")
+                coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
+                api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
                 # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
                 route = api.directions(
                 profile='car',
@@ -173,7 +205,7 @@ def traveledDistance(data):
             except:
                 pass
         # Access the route properties with .geometry, .duration, .distance                  
-        # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
+        # print("Loop:", i, "timediff:", time_diff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
         
     return round(totalDistance/1000, 3)
@@ -198,9 +230,9 @@ with col1:
         uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
         lat_column_index, lon_column_index = 0,0     
         if url:   
-            df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
+            df = pd.read_csv(url,encoding = "UTF-8")                
         if uploaded_file:        
-            df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
+            df = pd.read_csv(uploaded_file,encoding = "UTF-8")
         m = folium.Map(max_zoom = 21,
                     tiles='stamenterrain',
                     zoom_start=14,
@@ -264,7 +296,7 @@ if submitted:
         center = track_distance.dissolve().centroid
         center_lon, center_lat = center.x, center.y        
         m = folium.Map(max_zoom = 21,
-                        tiles='stamentoner',
+                        tiles='stamenterrain',
                         location = [center_lat, center_lon],
                         zoom_start=14,
                         control_scale=True
@@ -302,5 +334,4 @@ if submitted:
         folium_static(m, width = 600)
         download_geojson(trackpoints_cleaned, 'track_points_cleaned')
         download_geojson(track_distance, 'track')
-        st.write('cleaned: ', trackpoints_cleaned)      
 

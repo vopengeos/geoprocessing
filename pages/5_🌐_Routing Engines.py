@@ -32,7 +32,7 @@ st.write('Popular routing engines with routingpy')
 routers = {
     'osrm': {
         'display_name': 'OSRM',
-        'profile': 'car', #"car", "bike", "foot". 
+        'profile': 'car', #"car", "bike", "foot". # the same route for car, bike, and foot!!!!
         # The public FOSSGIS instances ignore any profile parameter set this way and instead chose to encode the ‘profile’ in the base URL, 
         # e.g. https://routing.openstreetmap.de/routed-bike. Default “driving”.
         'color': '#1A2BE2',
@@ -48,7 +48,7 @@ routers = {
     'mapbox_osrm': {
         'api_key': 'pk.eyJ1IjoidGhhbmdxZCIsImEiOiJucHFlNFVvIn0.j5yb-N8ZR3d4SJAYZz-TZA', 
         'display_name': 'MapBox (OSRM)',
-        'profile': 'cycling', # 'driving-traffic', 'driving', 'walking', 'cycling' 
+        'profile': 'driving', # 'driving', 'driving', 'walking', 'cycling' 
         'color': '#ff9900',
         'isochrones_profile': 'mapbox/driving', 
         'isochrones': True
@@ -56,7 +56,7 @@ routers = {
     'graphhopper': {
         'api_key': 'cfe0171d-e51b-4988-884e-d4e641bb945a',
         'display_name': 'GraphHopper', 
-        'profile': 'mtb', # “car”, “bike”, “foot”, “hike”, “mtb”, “racingbike”, “scooter”, “truck”, “small_truck”        
+        'profile': 'car', # “car”, “bike”, “foot”, “hike”, “mtb”, “racingbike”, “scooter”, “truck”, “small_truck”        
         'color': '#417900',
         'isochrones': True
     },      
@@ -120,11 +120,13 @@ with col1:
         uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
         lat_column_index, lon_column_index = 0,0     
         if url:   
-            df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
+            df = pd.read_csv(url,encoding = "UTF-8")                
         if uploaded_file:        
-            df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
-        
-        df = df.sort_values('datetime').reset_index().drop('index', axis=1)
+            df = pd.read_csv(uploaded_file,encoding = "UTF-8")
+        st.write(df)
+        # df = df.sort_values('datetime').reset_index().drop('index', axis=1)
+        df = df.sort_values('datetime')
+
         # for column in df.columns:
         #     if (column.lower() == 'y' or column.lower().startswith("lat") or column.lower().startswith("n")):
         #         lat_column_index=df.columns.get_loc(column)
@@ -160,11 +162,15 @@ with col1:
 
 if submitted:
     with col2:
-        dict_ = {"router": [], "distance": [], "duration": []}
+        dict_ = {"router": [], "distance": [], "duration": [], "speed": []}
         geometries = []
         for router in routers_selected: 
             if router == 'osrm':
-                api = OSRM(base_url="https://router.project-osrm.org/")
+                api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
+                # "https://routing.openstreetmap.de/routed-bike/"
+                # "https://routing.openstreetmap.de/routed-foot/"
+                # "https://routing.openstreetmap.de/routed-car/"
+                # https://router.project-osrm.org/ # --> the same route for bike, foot, car
             else:
                 api = get_router_by_name(router)(api_key=routers[router]['api_key'])   
 
@@ -174,11 +180,15 @@ if submitted:
                 profile=routers[router]['profile'],
                 locations=coordinates
             )
+            # st.write(route.geometry)
             # Access the route properties with .geometry, .duration, .distance
-            distance, duration = route.distance / 1000, int(route.duration / 60) #km, minutes
+            distance, duration = route.distance / 1000, route.duration / 60 #km, minutes
             dict_["router"].append(router)
             dict_["distance"].append(distance)
             dict_["duration"].append(duration)
+            if (route.duration > 0):
+                dict_["speed"].append((route.distance/1000)/(route.duration/3600)) # km/h
+            else: dict_["speed"].append(0)
             geometries.append(LineString(route.geometry))
             st.write("Calulated {}".format(router))
 
