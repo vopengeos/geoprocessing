@@ -97,14 +97,16 @@ def removejumping(data):
     filtered = data
     outliers_index = []
     count = 0
-    for i in range (1, len(filtered)):
+    for i in range (0, len(filtered)):
+        st.write(i,data.iloc[i].datetime)
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h        
+        velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h    
+        st.write(distance_diff)    
         if velocity > 70: #km/h        
             st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
             # filtered = filtered.drop([i])
-            outliers_index.append(str(data.iloc[i].datetime))            
+            outliers_index.append(data.iloc[i].datetime)            
             count+=1
     st.write('deleted track points: ', count)
     # st.write(outliers_index)
@@ -148,19 +150,19 @@ def preProcessing2(data, start_time, end_time, formular):
     filtered = data 
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
     # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
-    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     ############## Drop duplicate track points (the same datetime)
     filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
-    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     ############## Drop duplicate track points (the same latitude and longitude)
     filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first')
-    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     st.write('after delete duplicates: ', len(filtered))    
     # st.write(filtered)
 
     ############## Drop "jumping" track points
     filtered = removejumping(filtered)
-    filtered = filtered.sort_values('datetime').reset_index()
+    # filtered = filtered.sort_values('datetime').reset_index()
     ############## add_path_nodes
     # filtered = add_path_nodes(filtered)
 
