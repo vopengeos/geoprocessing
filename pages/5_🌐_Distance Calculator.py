@@ -100,8 +100,7 @@ def preProcessing2(data, start_time, end_time, formular):
     #print(end)
     filtered = data 
     st.write(data.dtypes) 
-    filtered['datetime'] = datetime.strptime(str(filtered['datetime']), timestamp_format)
-    # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
+    filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
 
 
     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
