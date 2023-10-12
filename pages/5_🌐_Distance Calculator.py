@@ -15,6 +15,7 @@ from folium.plugins import Fullscreen
 import streamlit_ext as ste
 # from pykalman import KalmanFilter
 import numpy as np
+from math import radians, cos, acos, sin, asin, sqrt
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -91,21 +92,22 @@ def preProcessing(data, start_time, end_time, formular):
 #     df = pd.DataFrame(data=kalman_smoothed, columns=['latitude', 'longitude'])
 #     st.write(df)
 #     return df
-    
+
+
 def removejumping(data): 
     st.write('before removing jumping', len(data))
     filtered = data
     outliers_index = []
     count = 0
-    for i in range (0, len(filtered)):
-        st.write(i,data.iloc[i].datetime)
+    for i in range (1, len(filtered)):
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h    
-        st.write(distance_diff)    
-        if velocity > 70: #km/h        
-            st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
+        # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
+        velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h   
+        # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
+        if velocity > 70 and i< len(filtered) -1: #km/h, except final jumping point! Ex: WayPoint_20230928142338.csv        
             # filtered = filtered.drop([i])
+            st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,time_diff, distance_diff, velocity,' km/h')
             outliers_index.append(data.iloc[i].datetime)            
             count+=1
     st.write('deleted track points: ', count)
@@ -114,30 +116,6 @@ def removejumping(data):
     st.write('after removing jumping', len(filtered))
     st.write(filtered)
     return filtered
-
-# def add_path_nodes(data): 
-#     st.write('before add_path_nodes', len(data))
-#     count = 0
-#     geometries = []
-#     filtered = data
-#     for i in range (1, len(filtered)):
-#         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
-#         distance_diff = geopy.distance.geodesic((data.iloc[i].latitude, data.iloc[i].longitude), (data.iloc[i - 1].latitude, data.iloc[i - 1].longitude)).m
-#         velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h        
-#         if velocity > 70:
-#             coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude], ]
-#             api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
-#             # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
-#             route = api.directions(
-#             profile='car',
-#             locations= coor       
-#             )
-#             geometries.append(route.geometry)
-#     st.write('shortest path geometries: ', geometries)
-#     st.write('add track points: ', count)
-#     st.write('after add_path_nodes', len(filtered))
-#     return filtered
-
 
 
 def preProcessing2(data, start_time, end_time, formular):
@@ -149,27 +127,18 @@ def preProcessing2(data, start_time, end_time, formular):
     #print(end)
     filtered = data 
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
-    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
-    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     ############## Drop duplicate track points (the same datetime)
     filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
-    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+
     ############## Drop duplicate track points (the same latitude and longitude)
     filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first')
-    # filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
     st.write('after delete duplicates: ', len(filtered))    
-    # st.write(filtered)
 
     ############## Drop "jumping" track points
     filtered = removejumping(filtered)
-    # filtered = filtered.sort_values('datetime').reset_index()
-    ############## add_path_nodes
-    # filtered = add_path_nodes(filtered)
+    st.write('after remove jumping points: ', len(filtered))    
 
-
-    # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
-    
-    
+  
     # MotionActivity filter may delete "moving" track points
     # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
     # if formular == 'old': 
@@ -187,14 +156,14 @@ def traveledDistance(data):
     for i in range (1, len(data)):
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
-        # distance_temp = haversine(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
+        # distance_temp = haversine((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        velocity =  (distance_temp*0.001)/(time_diff/3600) #km/h        
-        if velocity > 70: #km/h 
-        # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
-            # #distance_temp = 0
-            # st.write(data.iloc[i].datetime)
-            try:
+        velocity =  (distance_temp*0.001)/(time_diff/3600) #km/h      
+        # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
+        #     # #distance_temp = 0
+        #     # st.write(data.iloc[i].datetime)
+        try:  
+            if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP : #km/h 
                 coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
                 api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
                 # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
@@ -203,8 +172,8 @@ def traveledDistance(data):
                 locations= coor       
                 )
                 distance_temp = route.distance
-            except:
-                pass
+        except:
+            pass
         # Access the route properties with .geometry, .duration, .distance                  
         # print("Loop:", i, "timediff:", time_diff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
@@ -257,7 +226,7 @@ with col1:
         folium_static(m, width = 600)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         trackpoints_origin = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')        
-        download_geojson(trackpoints_origin, 'origin track points')
+        download_geojson(trackpoints_origin, 'original track points')
         submitted = st.form_submit_button("Calculate Distance")    
     st.write('origin: ', df)
 

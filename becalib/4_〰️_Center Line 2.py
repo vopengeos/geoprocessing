@@ -3,11 +3,12 @@ from streamlit_folium import folium_static
 import streamlit as st
 import streamlit_ext as ste
 import geopandas as gpd
-import fiona
-from shapely.ops import voronoi_diagram
+import fiona,os, shapely
 from centerline.geometry import Centerline
-import shapely
+from shapely.geometry import LineString, Polygon, Point, mapping
 from timeit import default_timer as timer
+from shapely import wkt
+import numpy as np
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -74,29 +75,36 @@ def highlight_function(feature):
     'weight': 4,
     # 'dashArray': '5, 5'
 }
+def coord_lister(geom):
+    coords = list(geom.exterior.coords)
+    return (coords)
 
-# def create_centerline(gdf):
-#     st.write(gdf)
-#     polygon = Polygon([[0, 0], [0, 4], [4, 4], [4, 0]])
-#     # attributes = {"id": 1, "name": "polygon", "valid": True}
-#     centerline = Centerline(polygon)
-#     centerline_geometry  = {'geometry':centerline.geometry.geoms}
-#     target = gpd.GeoDataFrame(centerline_geometry, crs = gdf.crs)
-#     return target
 
-def create_centerline(gdf, interpolation_distance=1):
+
+def create_centerline2(gdf):
+    coordinate_list = gdf.geometry.get_coordinates() 
+    st.write(coordinate_list)
+    # polygon = Polygon(((0., 0.), (0., 10.), (10., 10.), (10., 0.), (0., 0.)))
+    polygon = Polygon([coordinate_list])
+    centerline = Centerline(polygon)
+    centerline_geometry  = {'geometry':centerline.geometry.geoms}
+    target = gpd.GeoDataFrame(centerline_geometry, crs = gdf.crs)
+    return target
+
+def create_centerline(gdf, interpolation_distance=0.001):
    #find the voronoi verticies (equivalent to Centerline._get_voronoi_vertices_and_ridges())
    borders = gdf.segmentize(interpolation_distance) #To have smaler verticies (equivalent to Centerline._get_densified_borders())
-   st.write(borders)
+#    st.write(borders)
    voronoied = shapely.voronoi_polygons(borders,only_edges=True) #equivalent to the scipy.spatial.Voronoi
-   st.write(voronoied)
+#    st.write(voronoied)
    voronoi_geometry  = {'geometry':voronoied}
-    #    target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
-   #to select only the linestring within the input geometry (equivalent to Centerline._linestring_is_within_input_geometry)
    centerline_candidates = gpd.GeoDataFrame(voronoi_geometry, crs = 'epsg:4326')
-   st.write(centerline_candidates)
+   centerline_candidates = centerline_candidates.explode('geometry') #Explode it so each segment becomes a row (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html)
+   centerline_candidates = gpd.GeoDataFrame(data=centerline_candidates, geometry='geometry', crs = gdf.crs )
+#    st.write(centerline_candidates)
    centerlines = centerline_candidates.sjoin(gdf,predicate="within")
-   return centerline_candidates
+#    centerlines = centerlines.dissolve(by='index_right')
+   return centerlines
 
 
 
@@ -104,7 +112,7 @@ form = st.form(key="center_line")
 with form:   
     url = st.text_input(
             "Enter a URL to a point dataset",
-            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon_centerline.geojson",
+            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/polygon_centerline2.geojson",
         )
 
     uploaded_file = st.file_uploader(
@@ -154,9 +162,9 @@ with form:
         if submitted:
             # target = create_centerline(gdf,1)
             start = timer()
-            # target = Centerline(gdf.iloc[0]['geometry'],interpolation_distance=2)
+            # target = create_centerline2(gdf)
             end = timer()
-            target = create_centerline(gdf,interpolation_distance=0.1)
+            target = create_centerline(gdf,interpolation_distance=0.00001)
             end2 = timer()
             st.write(f" Duration current implementation : {end-start:0.3f}s \n Duration proposed implementation : {end2-end:0.3f}s")
 
