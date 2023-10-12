@@ -113,8 +113,6 @@ def removejumping(data):
     st.write('Number of jumping points deleted: ', count)
     # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
-    st.write('After removing jumping points: ', len(filtered))
-    st.write(filtered)
     return filtered
 
 
@@ -137,7 +135,7 @@ def preProcessing2(data, start_time, end_time, formular):
     ############## Drop "jumping" track points
     filtered = removejumping(filtered)
     st.write('After remove jumping points: ', len(filtered))    
-
+    st.write(filtered)
   
     # MotionActivity filter may delete "moving" track points
     # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
@@ -148,8 +146,6 @@ def preProcessing2(data, start_time, end_time, formular):
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     # st.write(filtered)
     return filtered
-
-
 
 def traveledDistance(data):
     totalDistance = 0
@@ -163,7 +159,7 @@ def traveledDistance(data):
         #     # #distance_temp = 0
         #     # st.write(data.iloc[i].datetime)
         try:  
-            if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP : #km/h 
+            if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP : #km/h , in case of lost GPS signals for more than MAX_ALLOWED_TIME_GAP seconds
                 coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
                 api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
                 # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
