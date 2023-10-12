@@ -95,7 +95,7 @@ def preProcessing(data, start_time, end_time, formular):
 
 
 def removejumping(data): 
-    st.write('before removing jumping', len(data))
+    st.write('Before removing jumping points', len(data))
     filtered = data
     outliers_index = []
     count = 0
@@ -110,16 +110,16 @@ def removejumping(data):
             st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,time_diff, distance_diff, velocity,' km/h')
             outliers_index.append(data.iloc[i].datetime)            
             count+=1
-    st.write('deleted track points: ', count)
+    st.write('Number of jumping points deleted: ', count)
     # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
-    st.write('after removing jumping', len(filtered))
+    st.write('After removing jumping points: ', len(filtered))
     st.write(filtered)
     return filtered
 
 
 def preProcessing2(data, start_time, end_time, formular):
-    st.write('before delete duplicates: ', len(data))   
+    st.write('Before delete duplicates: ', len(data))   
     timestamp_format = "%Y-%m-%d %H:%M:%S"
     start = datetime.strptime(start_time, timestamp_format)
     #print(start)
@@ -132,11 +132,11 @@ def preProcessing2(data, start_time, end_time, formular):
 
     ############## Drop duplicate track points (the same latitude and longitude)
     filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first')
-    st.write('after delete duplicates: ', len(filtered))    
+    st.write('After delete duplicates: ', len(filtered))    
 
     ############## Drop "jumping" track points
     filtered = removejumping(filtered)
-    st.write('after remove jumping points: ', len(filtered))    
+    st.write('After remove jumping points: ', len(filtered))    
 
   
     # MotionActivity filter may delete "moving" track points
@@ -195,7 +195,7 @@ with col1:
     with form: 
         url = st.text_input(
                 "Enter a CSV URL with Latitude and Longitude Columns",
-                'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps_noise.csv'
+                'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/gps_noise_2.csv'
             )
         uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
         lat_column_index, lon_column_index = 0,0     
