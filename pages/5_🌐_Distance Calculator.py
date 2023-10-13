@@ -142,7 +142,8 @@ def preProcessing2(data, start_time, end_time, formular):
     filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
 
     ############## Drop duplicate track points (the same latitude and longitude)
-    filtered = filtered.drop(df.tail(1).index).drop_duplicates(subset=["latitude", "longitude"], keep='first') # except last point in case of return to sart point with the same lat long
+    # filtered = filtered.drop(df.tail(1).index).drop_duplicates(subset=["latitude", "longitude"], keep='first') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first') # except last point in case of return to sart point with the same lat long
     st.write('After delete duplicates: ', len(filtered))    
 
     ############## Drop "jumping" track points
