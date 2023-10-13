@@ -134,19 +134,18 @@ def preProcessing(data, start_time, end_time, formular):
 #     st.write(df)
 #     return df
 
-
 def removejumping(data): 
     filtered = data
     outliers_index = []
     st.write('Jumping points: ')
-    for i in range (1, len(filtered)):
+    for i in range (1, len(filtered)-1):  #except final jumping point! Ex: WayPoint_20230928142338.csv        
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
             # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
-            if velocity > 70 and i< len(filtered) -1: #km/h, except final jumping point! Ex: WayPoint_20230928142338.csv        
+            if velocity > 70 : #km/h,
                 # filtered = filtered.drop([i])
                 st.write('Current Point: ',  data.iloc[i-1].datetime, ' Jumping Point: ', data.iloc[i].datetime,' Time (seconds): ', round(time_diff, 2) , ' Distance (km): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
                 outliers_index.append(data.iloc[i].datetime)            
