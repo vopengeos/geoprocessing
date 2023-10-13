@@ -208,33 +208,34 @@ def traveledDistance(data):
         #     # st.write(data.iloc[i].datetime)        
         try:  
             if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
-                st.write(data.iloc[i-1].datetime)
-                st.write(data.iloc[i].datetime)
-                st.write('velocity: ',  velocity)
-                st.write('time_diff: ', time_diff)
-                st.write('distance_temp:', distance_temp)
-                coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
-                api = OSRM(base_url="https://routing.openstreetmap.de/routed-foot/")
-                # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
-                route = api.directions(
-                profile='car',
-                locations= coor       
-                )
-                dict_["time"].append(data.iloc[i - 1].datetime)
-                dict_["distance"].append(route.distance)
-                dict_["duration"].append(route.duration)
-                if (route.duration > 0):
-                    dict_["speed"].append((route.distance/1000)/(route.duration/3600)) # km/h
-                else: dict_["speed"].append(0)
+                if velocity > 5:
+                    st.write(data.iloc[i-1].datetime)
+                    st.write(data.iloc[i].datetime)
+                    st.write('velocity: ',  velocity)
+                    st.write('time_diff: ', time_diff)
+                    st.write('distance_temp:', distance_temp)
+                    coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
+                    api = OSRM(base_url="https://routing.openstreetmap.de/routed-foot/")
+                    # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
+                    route = api.directions(
+                    profile='car',
+                    locations= coor       
+                    )
+                    dict_["time"].append(data.iloc[i - 1].datetime)
+                    dict_["distance"].append(route.distance)
+                    dict_["duration"].append(route.duration)
+                    if (route.duration > 0):
+                        dict_["speed"].append((route.distance/1000)/(route.duration/3600)) # km/h
+                    else: dict_["speed"].append(0)
 
-                crowfly_distance.append(round(distance_temp,2))
-                distance_temp = route.distance                
-                shortestpath_distance.append(round(route.distance,2))
-                shortestpath_index.append(data.iloc[i-1].datetime)  
-                shortestpath_index.append(data.iloc[i].datetime)  
-                
-                shortestpath_geometries.append(LineString(route.geometry))
-                count += 1
+                    crowfly_distance.append(round(distance_temp,2))
+                    distance_temp = route.distance                
+                    shortestpath_distance.append(round(route.distance,2))
+                    shortestpath_index.append(data.iloc[i-1].datetime)  
+                    shortestpath_index.append(data.iloc[i].datetime)  
+                    
+                    shortestpath_geometries.append(LineString(route.geometry))
+                    count += 1
         except:
             pass
         # Access the route properties with .geometry, .duration, .distance                  
