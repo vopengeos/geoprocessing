@@ -58,15 +58,30 @@ def highlight_function(feature):
     # 'dashArray': '5, 5'
 }
 
-def statistics(df):
-    df['datetime'] = pd.to_datetime(df['datetime']).dt.tz_localize(None)
-    st.write('Number of track points: ', len(df))   
-    st.write ('Start time:', df.iloc[0].datetime)
-    st.write ('End time:', df.iloc[-1].datetime)
-    st.write ('Number of duplicate datetime: ', df.duplicated(subset=["datetime"], keep='first'))
-    st.write ('Number of duplicate lat and long: ', df.duplicated(subset=["latitude", "longitude"], keep='first').sum())
-    st.write('General info: ', df.info())
-    st.write(df)
+def statistics(trackpoints):
+    totalDistance = 0
+    trackpoints['datetime'] = pd.to_datetime(trackpoints['datetime']).dt.tz_localize(None)
+    for i in range (1, len(trackpoints)):
+        time_diff = (datetime.strptime(str(trackpoints.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(trackpoints.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        distance_temp = geopy.distance.geodesic((trackpoints.iloc[i-1].latitude, trackpoints.iloc[i-1].longitude), (trackpoints.iloc[i].latitude, trackpoints.iloc[i].longitude)).m
+        totalDistance += distance_temp      
+    
+    totalDistance =  round(totalDistance/1000, 3)
+    st.write ('Total distance without any filters: ', totalDistance, ' km')
+    totalTime =  (datetime.strptime(str(trackpoints.iloc[-1].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(trackpoints.iloc[0].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()/60
+    st.write ('Total time: ', round(totalTime,2), ' minutes')
+    if totalTime > 0 :
+        st.write ('Average Speed: ', round(totalDistance/(totalTime/60),2), (' km/h'))
+    
+    st.write('Number of track points: ', len(trackpoints))  
+    st.write ('Number of duplicate datetime: ', trackpoints.duplicated(subset=["datetime"], keep='last').sum())
+    st.write ('Number of duplicate lat and long: ', trackpoints.duplicated(subset=["latitude", "longitude"], keep='last').sum())
+    st.write ('Number of duplicate datetime, lat and long: ', trackpoints.duplicated(subset=["datetime", "latitude", "longitude"], keep='last').sum())
+    st.write ('Start time:', trackpoints.iloc[0].datetime)
+    st.write ('End time:', trackpoints.iloc[-1].datetime)
+
+    st.write(trackpoints)
+    st.write('Activity types: ', trackpoints['motionActivity'].unique()) 
 
 
 def preProcessing(data, start_time, end_time, formular):    
@@ -106,72 +121,75 @@ def preProcessing(data, start_time, end_time, formular):
 
 
 def removejumping(data): 
-    st.write('Before removing jumping points', len(data))
     filtered = data
     outliers_index = []
-    count = 0
+    st.write('Jumping points: ')
     for i in range (1, len(filtered)):
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
-        velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h   
-        # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
-        if velocity > 70 and i< len(filtered) -1: #km/h, except final jumping point! Ex: WayPoint_20230928142338.csv        
-            # filtered = filtered.drop([i])
-            st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,time_diff, distance_diff, velocity,' km/h')
-            outliers_index.append(data.iloc[i].datetime)            
-            count+=1
-    st.write('Number of jumping points deleted: ', count)
+        if time_diff > 0:
+            velocity =  (distance_diff*0.001)/(time_diff/3600) #km/h   
+            # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
+            if velocity > 70 and i< len(filtered) -1: #km/h, except final jumping point! Ex: WayPoint_20230928142338.csv        
+                # filtered = filtered.drop([i])
+                st.write('Current Point: ',  data.iloc[i-1].datetime, ' Jumping Point: ', data.iloc[i].datetime,' Time (seconds): ', round(time_diff, 2) , ' Distance (km): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
+                outliers_index.append(data.iloc[i].datetime)            
     # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
     return filtered
 
 
-
-
 def preProcessing2(data, start_time, end_time, formular):
-    st.write('Before delete duplicates: ', len(data))   
+    st.write('Number of original track points: ', len(data))   
     timestamp_format = "%Y-%m-%d %H:%M:%S"
     start = datetime.strptime(start_time, timestamp_format)
     #print(start)
     end = datetime.strptime(end_time, timestamp_format)
     #print(end)
-    filtered = data 
+    filtered = data
+
+    # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
     ############## Drop duplicate track points (the same datetime)
-    filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
+    filtered = filtered.drop_duplicates(subset=["datetime"], keep='last')
 
     ############## Drop duplicate track points (the same latitude and longitude)
-    # filtered = filtered.drop(df.tail(1).index).drop_duplicates(subset=["latitude", "longitude"], keep='first') # except last point in case of return to sart point with the same lat long
-    filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
+    # filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
     st.write('After delete duplicates: ', len(filtered))    
 
     ############## Drop "jumping" track points
     filtered = removejumping(filtered)
     st.write('After remove jumping points: ', len(filtered))    
-    st.write(filtered)
   
-    # MotionActivity filter may delete "moving" track points
-    # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    # if formular == 'old': 
-    #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
-    # filtered = filtered.loc[mask]
+    ##############MotionActivity filter:  may delete "moving" track points
+    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    if formular == 'old': 
+        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
+    filtered = filtered.loc[mask]
+    st.write('After filter Motion Activity: ', len(filtered))    
 
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
-    # st.write(filtered)
-    return filtered
+    st.write(filtered)
+    return filtered    
 
 def traveledDistance(data):
     totalDistance = 0
+    count = 0
+    shortestpath_index = []
+    shortestpath_distance = []
+    crowfly_distance = []
     for i in range (1, len(data)):
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         # distance_temp = haversine((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+        
         velocity =  (distance_temp*0.001)/(time_diff/3600) #km/h      
         # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
         #     # #distance_temp = 0
-        #     # st.write(data.iloc[i].datetime)
+        #     # st.write(data.iloc[i].datetime)        
         try:  
             if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP : #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
                 coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
@@ -181,13 +199,18 @@ def traveledDistance(data):
                 profile='car',
                 locations= coor       
                 )
+                crowfly_distance.append(round(distance_temp,2))
                 distance_temp = route.distance
+                shortestpath_distance.append(round(route.distance,2))
+                shortestpath_index.append(data.iloc[i-1].datetime)  
+                shortestpath_index.append(data.iloc[i].datetime)  
+                count += 1
         except:
             pass
         # Access the route properties with .geometry, .duration, .distance                  
         # print("Loop:", i, "timediff:", time_diff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
-        
+    st.write('Number of using shortest path in distance calculation: ', count, shortestpath_index,'Crow fly distance: ' , crowfly_distance, 'Shortest Path: ', shortestpath_distance)
     return round(totalDistance/1000, 3)
 
 def download_geojson(gdf, layer_name):
@@ -267,7 +290,7 @@ if submitted:
 
         st.write('Step 2/2: Distance Calculation')
         groupBy = ['driver', 'date_string']
-        st.write('Distance traveled:', str(CalculateDistance(df, groupBy)), ' km') 
+        st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         geo_df = gdp.GeoDataFrame(df, geometry=geometry)
