@@ -58,6 +58,17 @@ def highlight_function(feature):
     # 'dashArray': '5, 5'
 }
 
+def statistics(df):
+    df['datetime'] = pd.to_datetime(df['datetime']).dt.tz_localize(None)
+    st.write('Number of track points: ', len(df))   
+    st.write ('Start time:', df.iloc[0].datetime)
+    st.write ('End time:', df.iloc[-1].datetime)
+    st.write ('Number of duplicate datetime: ', df.duplicated(subset=["datetime"], keep='first'))
+    st.write ('Number of duplicate lat and long: ', df.duplicated(subset=["latitude", "longitude"], keep='first').sum())
+    st.write('General info: ', df.info())
+    st.write(df)
+
+
 def preProcessing(data, start_time, end_time, formular):    
     timestamp_format = "%Y-%m-%d %H:%M:%S"
     timestamp_format2 = "%d-%m-%Y %H:%M"
@@ -116,6 +127,8 @@ def removejumping(data):
     return filtered
 
 
+
+
 def preProcessing2(data, start_time, end_time, formular):
     st.write('Before delete duplicates: ', len(data))   
     timestamp_format = "%Y-%m-%d %H:%M:%S"
@@ -129,7 +142,7 @@ def preProcessing2(data, start_time, end_time, formular):
     filtered = filtered.drop_duplicates(subset=["datetime"], keep='first')
 
     ############## Drop duplicate track points (the same latitude and longitude)
-    filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='first')
+    filtered = filtered.drop(df.tail(1).index).drop_duplicates(subset=["latitude", "longitude"], keep='first') # except last point in case of return to sart point with the same lat long
     st.write('After delete duplicates: ', len(filtered))    
 
     ############## Drop "jumping" track points
@@ -159,7 +172,7 @@ def traveledDistance(data):
         #     # #distance_temp = 0
         #     # st.write(data.iloc[i].datetime)
         try:  
-            if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP : #km/h , in case of lost GPS signals for more than MAX_ALLOWED_TIME_GAP seconds
+            if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP : #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
                 coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
                 api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
                 # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
@@ -224,7 +237,7 @@ with col1:
         trackpoints_origin = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')        
         download_geojson(trackpoints_origin, 'original track points')
         submitted = st.form_submit_button("Calculate Distance")    
-    st.write('origin: ', df)
+    
 
 
 def CalculateDistance(data, groupBy):        
@@ -234,7 +247,9 @@ def CalculateDistance(data, groupBy):
 
 
 if submitted:
-    with col2:
+    with col1:
+        statistics(df)
+    with col2:        
         st.write('Step 1/2: Preprocessing')
         # df = smooth(df)
         df = preProcessing2(df, start_time, end_time, 'new') 
