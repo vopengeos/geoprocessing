@@ -72,7 +72,7 @@ routers = {
     # print ('HERE Maps responses: ', x.content)
 
     # 'google': {
-    #     'api_key': 'AIzaSyAK0hzEteAwyZd9QkfLJI0fj6gg3as075c',
+    #     'api_key': 'YOUR API KEY',
     #     'display_name': 'Google',
     #     'profile': 'driving', # 'driving', 'walking', 'bicycling', 'transit'], bicycling is not available in some countries
     #     'color': '#ff33cc',

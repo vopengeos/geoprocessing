@@ -163,6 +163,14 @@ def preProcessing2(data, start_time, end_time, formular):
     #print(end)
     filtered = data
 
+    ##############MotionActivity filter:  may delete "moving" track points
+    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    if formular == 'old': 
+        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
+    filtered = filtered.loc[mask]
+    st.write('After filter Motion Activity: ', len(filtered))    
+
+
     # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
     ############## Drop duplicate track points (the same datetime)
@@ -177,12 +185,6 @@ def preProcessing2(data, start_time, end_time, formular):
     filtered = removejumping(filtered)
     st.write('After remove jumping points: ', len(filtered))    
   
-    ##############MotionActivity filter:  may delete "moving" track points
-    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    if formular == 'old': 
-        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
-    filtered = filtered.loc[mask]
-    st.write('After filter Motion Activity: ', len(filtered))    
 
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     st.write(filtered)
