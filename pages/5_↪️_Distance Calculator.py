@@ -77,7 +77,6 @@ def statistics(trackpoints):
     totalDistance = 0
     trackpoints['datetime'] = pd.to_datetime(trackpoints['datetime']).dt.tz_localize(None)
     for i in range (1, len(trackpoints)):
-        time_diff = (datetime.strptime(str(trackpoints.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(trackpoints.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         distance_temp = geopy.distance.geodesic((trackpoints.iloc[i-1].latitude, trackpoints.iloc[i-1].longitude), (trackpoints.iloc[i].latitude, trackpoints.iloc[i].longitude)).m
         totalDistance += distance_temp      
     
@@ -147,7 +146,7 @@ def removejumping(data):
             # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
             if velocity > 70 : #km/h,
                 # filtered = filtered.drop([i])
-                st.write('Current Point: ',  data.iloc[i-1].datetime, ' Jumping Point: ', data.iloc[i].datetime,' Time (seconds): ', round(time_diff, 2) , ' Distance (km): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
+                st.write('Current Point: ',  data.iloc[i-1].datetime, ' Jumping Point: ', data.iloc[i].datetime,' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
                 outliers_index.append(data.iloc[i].datetime)            
     # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
@@ -197,22 +196,22 @@ def traveledDistance(data):
     shortestpath_distance = []
     crowfly_distance = []
     for i in range (1, len(data)):
-        velocity = 0
+        velocity_diff = 0
         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         # distance_temp = haversine((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         if time_diff>0:
-            velocity =  (distance_temp/1000)/(time_diff/3600) #km/h      
+            velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
         # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
         #     # #distance_temp = 0
         #     # st.write(data.iloc[i].datetime)        
         try:  
-            if velocity > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
-                if velocity > 5:
+            if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+                if velocity_diff > 5:
                     st.write(data.iloc[i-1].datetime)
                     st.write(data.iloc[i].datetime)
-                    st.write('velocity: ',  velocity)
+                    st.write('velocity: ',  velocity_diff)
                     st.write('time_diff: ', time_diff)
                     st.write('distance_temp:', distance_temp)
                     coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
