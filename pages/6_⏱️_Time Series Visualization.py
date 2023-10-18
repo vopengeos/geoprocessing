@@ -17,7 +17,6 @@ import geopandas as gpd
 # from pykalman import KalmanFilter
 import numpy as np
 import altair as alt
-from vega_datasets import data
 from folium.features import DivIcon
 
 
