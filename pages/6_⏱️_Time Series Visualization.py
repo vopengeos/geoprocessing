@@ -51,7 +51,7 @@ with col1:
     with form: 
         url = st.text_input(
                 "Enter a CSV URL with Latitude and Longitude Columns",
-                'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/doman.csv'
+                'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/salinity_2019.csv'
             )
         uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
         lat_column_index, lon_column_index = 0,0     
@@ -91,4 +91,6 @@ with col1:
 
 if submitted:
     with col1:
-        st.write('1111')
+        filtered = df
+        filtered = filtered.drop_duplicates(subset=["ID"], keep='last')
+        st.write(filtered)
