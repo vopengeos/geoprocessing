@@ -143,6 +143,7 @@ with col1:
 if submitted:
     with col2:  
         filtered = df
+        filtered['salinity'] = filtered['salinity'].astype(float)
         if len(IDs_selected) >0:
             filtered =  filtered[filtered['ID'].isin(IDs_selected)]
         if len(Days_selected) >0:
