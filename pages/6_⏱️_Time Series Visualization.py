@@ -100,7 +100,7 @@ with col1:
             folium.Marker([row['latitude'], row['longitude']], 
                         # popup = popup + f'<input type="text" value="{row["ID"]}" id="myInput"></br><button onclick="myFunction()">Copy ID</button>',
                         popup = popup,
-                        icon=folium.Icon(icon='cloud'),
+                        icon=folium.Icon(icon='gauge', prefix='fa'),
                         tooltip = row['ID'],
                         # icon=DivIcon(
                         # # icon_size=(150,36),
