@@ -163,11 +163,11 @@ def preProcessing2(data, start_time, end_time, formular):
     filtered = data
 
     ##############MotionActivity filter:  may delete "moving" track points
-    # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    # if formular == 'old': 
-    #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
-    # filtered = filtered.loc[mask]
-    # st.write('After filter Motion Activity: ', len(filtered))    
+    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    if formular == 'old': 
+        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
+    filtered = filtered.loc[mask]
+    st.write('After filter Motion Activity: ', len(filtered))    
 
     # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
@@ -322,13 +322,13 @@ if submitted:
         # download_geojson(geo_df_cleaned, 'track_points_cleaned')
 
         st.write('Step 2/2: Distance Calculation')
-        groupBy = ['driver','session']
+        groupBy = ['driver','date_string']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         geo_df = gdp.GeoDataFrame(df, geometry=geometry)
         # aggregate these points with the GrouBy
-        geo_df = geo_df.groupby(['driver', 'session'])['geometry'].apply(lambda x: LineString(x.tolist()))
+        geo_df = geo_df.groupby(['driver', 'date_string'])['geometry'].apply(lambda x: LineString(x.tolist()))
         track_distance = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
 
         center = track_distance.dissolve().centroid
