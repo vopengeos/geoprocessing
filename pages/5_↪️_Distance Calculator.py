@@ -324,7 +324,7 @@ if submitted:
         # download_geojson(geo_df_cleaned, 'track_points_cleaned')
 
         st.write('Step 2/2: Distance Calculation')
-        groupBy = ['driver', 'date_string']
+        groupBy = ['driver','session', 'date_string']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
