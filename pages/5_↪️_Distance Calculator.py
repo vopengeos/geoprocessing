@@ -144,7 +144,7 @@ def removejumping(data):
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
             # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
-            if velocity > 70 : #km/h,
+            if velocity >50 : #km/h,
                 # filtered = filtered.drop([i])
                 st.write('Current Point: ',  data.iloc[i-1].datetime, ' Jumping Point: ', data.iloc[i].datetime,' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
                 outliers_index.append(data.iloc[i].datetime)            
@@ -207,7 +207,7 @@ def traveledDistance(data):
         #     # #distance_temp = 0
         #     # st.write(data.iloc[i].datetime)        
         try:  
-            if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+            if velocity_diff > 50 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
                 if velocity_diff > 5:
                     st.write(data.iloc[i-1].datetime)
                     st.write(data.iloc[i].datetime)
