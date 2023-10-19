@@ -178,3 +178,4 @@ if submitted:
 
         st.altair_chart(c, use_container_width=True)
         st.write(filtered)
+        st.write(filtered['salinity'].describe())
