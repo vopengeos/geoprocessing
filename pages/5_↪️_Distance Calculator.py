@@ -144,9 +144,9 @@ def removejumping(data):
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
             # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
-            if velocity >50 : #km/h,
+            if velocity >70 : #km/h,
                 # filtered = filtered.drop([i])
-                st.write('Current Point: ',  data.iloc[i-1].datetime, ' Jumping Point: ', data.iloc[i].datetime,' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
+                st.write('Current Point: ',  data.iloc[i-1].datetime,  data.iloc[i-1].session, ' Jumping Point: ', data.iloc[i].datetime, data.iloc[i].session, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
                 outliers_index.append(data.iloc[i].datetime)            
     # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
@@ -168,15 +168,15 @@ def preProcessing2(data, start_time, end_time, formular):
         mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
     filtered = filtered.loc[mask]
     st.write('After filter Motion Activity: ', len(filtered))    
-
+    st.write('Groupby session:', filtered.groupby('session'))
 
     # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
     ############## Drop duplicate track points (the same datetime)
-    filtered = filtered.drop_duplicates(subset=["datetime"], keep='last')
+    filtered = filtered.drop_duplicates(subset=["session", "datetime"], keep='last')
 
     ############## Drop duplicate track points (the same latitude and longitude)
-    filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["session","latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
     # filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
     st.write('After delete duplicates: ', len(filtered))    
 
@@ -207,7 +207,7 @@ def traveledDistance(data):
         #     # #distance_temp = 0
         #     # st.write(data.iloc[i].datetime)        
         try:  
-            if velocity_diff > 50 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+            if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
                 if velocity_diff > 5:
                     st.write(data.iloc[i-1].datetime)
                     st.write(data.iloc[i].datetime)
@@ -324,7 +324,7 @@ if submitted:
         # download_geojson(geo_df_cleaned, 'track_points_cleaned')
 
         st.write('Step 2/2: Distance Calculation')
-        groupBy = ['driver','session', 'date_string']
+        groupBy = ['driver','session' ,'date_string']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
