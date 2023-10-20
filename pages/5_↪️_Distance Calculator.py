@@ -38,7 +38,7 @@ start_time = '2023-01-01 00:00:00'
 start_time = '2019-01-01 00:00:00'
 end_time = '2023-12-31 00:00:00'
 MAX_ALLOWED_TIME_GAP = 300  # seconds
-MAX_ALLOWED_DISTANCE_GAP = 10000000000000  # meters
+MAX_ALLOWED_DISTANCE_GAP = 200  # meters
 col1, col2 = st.columns(2)
 
 shortestpath_geometries = []
@@ -103,29 +103,6 @@ def statistics(trackpoints):
     st.write('Activity types: ', trackpoints['motionActivity'].unique()) 
 
 
-def preProcessing(data, start_time, end_time, formular):    
-    timestamp_format = "%Y-%m-%d %H:%M:%S"
-    timestamp_format2 = "%d-%m-%Y %H:%M"
-    start = datetime.strptime(start_time, timestamp_format)
-    #print(start)
-    end = datetime.strptime(end_time, timestamp_format)
-    #print(end)
-    filtered = data
-    
-    filtered['datetime'] = pd.to_datetime(filtered['datetime'])
-
-    # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    # if formular == 'old': 
-    #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
-    
-    # filtered = filtered.loc[mask]
-    
-    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
-    print('First point:', str(data.iloc[0].latitude) + ', ' + str(data.iloc[0].longitude))
-    print('Last point:', str(data.iloc[-1].latitude) + ', ' + str(data.iloc[-1].longitude))
-    filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
-    return filtered
-
 # def smooth(points):
 #     kf = KalmanFilter(
 #         initial_state_mean = points.iloc[0],
@@ -157,7 +134,7 @@ def removejumping(data):
     return filtered
 
 
-def preProcessing2(data, start_time, end_time, formular):
+def preProcessing(data, start_time, end_time, formular):
     filtered = data
     filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
@@ -187,19 +164,13 @@ def preProcessing2(data, start_time, end_time, formular):
     # filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
     st.write('After delete duplicates: ', len(filtered))    
 
-    ############## Drop "jumping" track points
-    # filtered = removejumping(filtered)
-    # st.write('After remove jumping points: ', len(filtered))    
-  
-    
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     st.write(filtered)
     return filtered    
 
 def traveledDistance(data):
     # Remove jumping point groupeb by driver, date, session
-    data = removejumping(data)
-    
+    data = removejumping(data)    
     totalDistance = 0
     count = 0
     shortestpath_index = []
@@ -215,10 +186,9 @@ def traveledDistance(data):
             velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
         # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
         #     # #distance_temp = 0
-        #     # st.write(data.iloc[i].datetime)    
-        
+        #     # st.write(data.iloc[i].datetime)     
     
-        if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+        if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
             if velocity_diff > 5:   
                 st.write(data.iloc[i-1].datetime)
                 st.write(data.iloc[i].datetime)
@@ -251,7 +221,8 @@ def traveledDistance(data):
         # print("Loop:", i, "timediff:", time_diff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
     st.write('Number of using shortest path in distance calculation: ', count, shortestpath_index,'Crow fly distance: ' , crowfly_distance, 'Shortest Path Distance: ', shortestpath_distance)
-    return round(totalDistance/1000, 3)
+    totalDistance_km = round(totalDistance/1000, 3)
+    return totalDistance_km
 
 def download_geojson(gdf, layer_name):
     if not gdf.empty:        
@@ -322,8 +293,8 @@ with col1:
 def CalculateDistance(data, groupBy):        
     grouped = data.groupby(groupBy)
     result = grouped.apply(traveledDistance)
-    return result.values[0]
-    # return result.sum()
+    # return result.values[0]
+    return result.sum()
 
 
 if submitted:
@@ -332,7 +303,7 @@ if submitted:
     with col2:        
         st.write('Step 1/2: Preprocessing')
         # df = smooth(df)
-        df = preProcessing2(df, start_time, end_time, 'new') 
+        df = preProcessing(df, start_time, end_time, 'new') 
         df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df['date_string'] = df['date_string'].astype(str)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
