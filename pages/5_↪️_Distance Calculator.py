@@ -76,6 +76,7 @@ def highlight_function(feature):
 def statistics(trackpoints):
     totalDistance = 0
     trackpoints['datetime'] = pd.to_datetime(trackpoints['datetime']).dt.tz_localize(None)
+    trackpoints = trackpoints.sort_values('datetime').reset_index().drop('index', axis=1)
     for i in range (1, len(trackpoints)):
         distance_temp = geopy.distance.geodesic((trackpoints.iloc[i-1].latitude, trackpoints.iloc[i-1].longitude), (trackpoints.iloc[i].latitude, trackpoints.iloc[i].longitude)).m
         totalDistance += distance_temp      
@@ -157,20 +158,24 @@ def removejumping(data):
 
 
 def preProcessing2(data, start_time, end_time, formular):
-    st.write('Number of original track points: ', len(data))   
+    filtered = data
+    filtered['datetime'] = pd.to_datetime(filtered['datetime'])
+    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+    st.write('Number of original track points: ', len(filtered))   
+
     timestamp_format = "%Y-%m-%d %H:%M:%S"
     start = datetime.strptime(start_time, timestamp_format)
     #print(start)
     end = datetime.strptime(end_time, timestamp_format)
     #print(end)
-    filtered = data
-
+    
+    
     ##############MotionActivity filter:  may delete "moving" track points
-    # mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    # if formular == 'old': 
-    #     mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
-    # filtered = filtered.loc[mask]
-    # st.write('After filter Motion Activity: ', len(filtered))    
+    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    if formular == 'old': 
+        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
+    filtered = filtered.loc[mask]
+    st.write('After filter Motion Activity: ', len(filtered))    
 
     # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
     filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
@@ -186,7 +191,7 @@ def preProcessing2(data, start_time, end_time, formular):
     # filtered = removejumping(filtered)
     # st.write('After remove jumping points: ', len(filtered))    
   
-
+    
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     st.write(filtered)
     return filtered    
@@ -210,38 +215,38 @@ def traveledDistance(data):
             velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
         # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
         #     # #distance_temp = 0
-        #     # st.write(data.iloc[i].datetime)        
-        try:  
-            if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  #km/h , MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
-                if velocity_diff > 5:
-                    # st.write(data.iloc[i-1].datetime)
-                    # st.write(data.iloc[i].datetime)
-                    # st.write('velocity: ',  velocity_diff)
-                    # st.write('time_diff: ', time_diff)
-                    # st.write('distance_temp:', distance_temp)
-                    coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
-                    api = OSRM(base_url="https://routing.openstreetmap.de/routed-bike/")
-                    # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
-                    route = api.directions(
-                    profile='car',
-                    locations= coor       
-                    )
-                    dict_["time"].append(data.iloc[i - 1].datetime)
-                    dict_["distance"].append(route.distance)
-                    dict_["duration"].append(route.duration)
-                    if (route.duration > 0):
-                        dict_["speed"].append((route.distance/1000)/(route.duration/3600)) # km/h
-                    else: dict_["speed"].append(0)
+        #     # st.write(data.iloc[i].datetime)    
+        
+    
+        if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> 200:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+            if velocity_diff > 5:   
+                st.write(data.iloc[i-1].datetime)
+                st.write(data.iloc[i].datetime)
+                st.write('velocity: ',  velocity_diff)
+                st.write('time_diff: ', time_diff)
+                st.write('distance_temp:', distance_temp)            
+                coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
+                api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
+                # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
+                route = api.directions(
+                profile='car',
+                locations= coor       
+                )
+                dict_["time"].append(data.iloc[i - 1].datetime)
+                dict_["distance"].append(route.distance)
+                dict_["duration"].append(route.duration)
+                if (route.duration > 0):
+                    dict_["speed"].append((route.distance/1000)/(route.duration/3600)) # km/h
+                else: dict_["speed"].append(0)
 
-                    crowfly_distance.append(round(distance_temp,2))
-                    distance_temp = route.distance                
+                crowfly_distance.append(round(distance_temp,2))
+                if route.distance  > 0:           
                     shortestpath_distance.append(round(route.distance,2))
                     shortestpath_index.append(data.iloc[i-1].datetime)  
                     shortestpath_index.append(data.iloc[i].datetime)                     
                     shortestpath_geometries.append(LineString(route.geometry))
-                    count += 1
-        except:
-            pass
+                    count += 1                    
+                    distance_temp = route.distance    
         # Access the route properties with .geometry, .duration, .distance                  
         # print("Loop:", i, "timediff:", time_diff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         totalDistance += distance_temp
@@ -287,26 +292,26 @@ with col1:
                 force_separate_button   = True,                                         
             ).add_to(m)
         
-        # colors = [ 'green','blue', 'orange', 'red',
-        #           'lightblue', 'cadetblue', 'darkblue', 
-        #           'lightgreen', 'darkgreen',             
-        #           'purple','darkpurple', 'pink',
-        #           'beige', 'lightred',
-        #           'white', 'lightgray', 'gray', 'black','darkred']
-        # if df['session'].nunique() <20:
-        #     df['session_label'] = pd.Categorical(df["session"]).codes
-        # else: df['session_label'] = 0
+        colors = [ 'green','blue', 'orange', 'red',
+                  'lightblue', 'cadetblue', 'darkblue', 
+                  'lightgreen', 'darkgreen',             
+                  'purple','darkpurple', 'pink',
+                  'beige', 'lightred',
+                  'white', 'lightgray', 'gray', 'black','darkred']
+        if df['session'].nunique() <20:
+            df['session_label'] = pd.Categorical(df["session"]).codes
+        else: df['session_label'] = 0
 
-        # for index, row in df.iterrows():
-        #     popup = row.to_frame().to_html()
-        #     folium.Marker([row['latitude'], row['longitude']], 
-        #                 popup=popup,
-        #                 # icon=folium.Icon(icon='car', color=colors[row.session_label], prefix='fa')
-        #                 icon=folium.Icon(icon='car', prefix='fa')
-        #                 ).add_to(m)        
+        for index, row in df.iterrows():
+            popup = row.to_frame().to_html()
+            folium.Marker([row['latitude'], row['longitude']], 
+                        popup=popup,
+                        icon=folium.Icon(icon='car', color=colors[row.session_label], prefix='fa')
+                        # icon=folium.Icon(icon='car', prefix='fa')
+                        ).add_to(m)        
             
-        # m.fit_bounds(m.get_bounds(), padding=(30, 30))
-        # folium_static(m, width = 600)
+        m.fit_bounds(m.get_bounds(), padding=(30, 30))
+        folium_static(m, width = 600)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         trackpoints_origin = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')        
         download_geojson(trackpoints_origin,layer_name)
@@ -317,8 +322,8 @@ with col1:
 def CalculateDistance(data, groupBy):        
     grouped = data.groupby(groupBy)
     result = grouped.apply(traveledDistance)
-    # return result.values[0]
-    return result.sum()
+    return result.values[0]
+    # return result.sum()
 
 
 if submitted:
