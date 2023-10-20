@@ -88,6 +88,8 @@ def statistics(trackpoints):
         st.write ('Average Speed: ', round(totalDistance/(totalTime/60),2), (' km/h'))
     
     st.write('Number of track points: ', len(trackpoints))  
+    st.write('Sessions: ', trackpoints['session'].unique())  
+
     st.write ('Number of duplicate datetime: ', trackpoints.duplicated(subset=["datetime"], keep='last').sum())
     st.write ('Number of duplicate lat and long: ', trackpoints.duplicated(subset=["latitude", "longitude"], keep='last').sum())
     st.write ('Number of duplicate datetime, lat and long: ', trackpoints.duplicated(subset=["datetime", "latitude", "longitude"], keep='last').sum())
@@ -180,8 +182,8 @@ def preProcessing2(data, start_time, end_time, formular):
     st.write('After delete duplicates: ', len(filtered))    
 
     ############## Drop "jumping" track points
-    filtered = removejumping(filtered)
-    st.write('After remove jumping points: ', len(filtered))    
+    # filtered = removejumping(filtered)
+    # st.write('After remove jumping points: ', len(filtered))    
   
 
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
@@ -189,6 +191,9 @@ def preProcessing2(data, start_time, end_time, formular):
     return filtered    
 
 def traveledDistance(data):
+    # Remove jumping point groupeb by driver, session
+    data = removejumping(data)
+    
     totalDistance = 0
     count = 0
     shortestpath_index = []
@@ -280,12 +285,22 @@ with col1:
                 title_cancel            = "Close full-screen map",                      
                 force_separate_button   = True,                                         
             ).add_to(m)
+        
+        colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred', 'lightred', 'beige',
+                    'darkblue', 'darkgreen', 'cadetblue', 'darkpurple', 'white', 'pink',
+                    'lightblue', 'lightgreen', 'gray', 'black', 'lightgray']
+
+        def colorCall(val):
+            val = int(val)
+            return colors[val]
+
+        df['session_label'] = pd.Categorical(df["session"]).codes
 
         for index, row in df.iterrows():
             popup = row.to_frame().to_html()
             folium.Marker([row['latitude'], row['longitude']], 
                         popup=popup,
-                        icon=folium.Icon(icon='cloud')
+                        icon=folium.Icon(icon='car', color=colors[row.session_label], prefix='fa')
                         ).add_to(m)        
             
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
@@ -322,13 +337,13 @@ if submitted:
         # download_geojson(geo_df_cleaned, 'track_points_cleaned')
 
         st.write('Step 2/2: Distance Calculation')
-        groupBy = ['driver','date_string']
+        groupBy = ['driver', 'session']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         geo_df = gdp.GeoDataFrame(df, geometry=geometry)
         # aggregate these points with the GrouBy
-        geo_df = geo_df.groupby(['driver', 'date_string'])['geometry'].apply(lambda x: LineString(x.tolist()))
+        geo_df = geo_df.groupby(['driver', 'session'])['geometry'].apply(lambda x: LineString(x.tolist()))
         track_distance = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
 
         center = track_distance.dissolve().centroid
