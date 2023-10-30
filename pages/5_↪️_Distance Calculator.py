@@ -196,7 +196,7 @@ def traveledDistance(data):
                 st.write('time_diff: ', time_diff)
                 st.write('distance_temp:', distance_temp)            
                 coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
-                api = OSRM(base_url="https://routing.openstreetmap.de/routed-bike/")
+                api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
                 # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
                 route = api.directions(
                 profile='car',
