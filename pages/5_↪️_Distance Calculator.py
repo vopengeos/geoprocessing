@@ -196,7 +196,7 @@ def traveledDistance(data):
                 st.write('time_diff: ', time_diff)
                 st.write('distance_temp:', distance_temp)            
                 coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
-                api = OSRM(base_url="https://routing.openstreetmap.de/routed-car/")
+                api = OSRM(base_url="https://routing.openstreetmap.de/routed-foot/")
                 # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
                 route = api.directions(
                 profile='car',
@@ -252,7 +252,7 @@ with col1:
             df = pd.read_csv(uploaded_file,encoding = "UTF-8")
             layer_name = os.path.splitext(uploaded_file.name)[0]
         m = folium.Map(max_zoom = 21,
-                    tiles='stamenterrain',
+                    tiles='openstreetmap',
                     zoom_start=14,
                     control_scale=True
                     )
@@ -328,7 +328,7 @@ if submitted:
         center = track_distance.dissolve().centroid
         center_lon, center_lat = center.x, center.y        
         m = folium.Map(max_zoom = 21,
-                        tiles='stamenterrain',
+                        tiles='openstreetmap',
                         location = [center_lat, center_lon],
                         zoom_start=14,
                         control_scale=True
