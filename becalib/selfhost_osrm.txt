@@ -1,0 +1,28 @@
+docker pull osrm/osrm-backend
+wget https://download.geofabrik.de/asia/vietnam-latest.osm.pbf
+docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf
+docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-extract -p /opt/bicycle.lua /data/vietnam-latest.osm.pbf
+docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-extract -p /opt/foot.lua /data/vietnam-latest.osm.pbf
+docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-partition /data/vietnam-latest.osrm
+docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-customize /data/vietnam-latest.osrm
+docker run --name osrm -t -i -p 5000:5000 -v "${PWD}:/data" osrm/osrm-backend osrm-routed --algorithm mld /data/vietnam-latest.osrm
+http://127.0.0.1:5000/match/v1/driving/106.68179822586218,10.778026269024773;106.68890743552434,10.784974534403199?steps=true
+https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/77.591392,12.954294;77.590398,12.95144?steps=true&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d
+docker run -p 9966:9966 osrm/osrm-frontend
+https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/77.591392,12.954294;77.590398,12.95144?steps=true&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d
+
+################
+openstreetmap tile server
+################
+docker pull overv/openstreetmap-tile-server
+docker run \
+    -e DOWNLOAD_PBF=https://download.geofabrik.de/asia/vietnam-latest.osm.pbf \
+    -e DOWNLOAD_POLY=https://download.geofabrik.de/asia/vietnam.poly \
+    -v osm-data:/data/database/ \
+    overv/openstreetmap-tile-server \
+    import
+docker run \
+    -p 8080:80 \
+    -v osm-data:/data/database/ \
+    -d overv/openstreetmap-tile-server \
+    run
