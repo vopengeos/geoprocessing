@@ -17,3 +17,7 @@ geopy
 geocoder
 pykalman
 centerline
+osmium
+geohash
+geojson
+fmm
