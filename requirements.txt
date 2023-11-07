@@ -21,3 +21,4 @@ osmium
 geohash
 geojson
 fmm
+polyline
