@@ -9,7 +9,7 @@ import geopandas as gpd
 import streamlit_ext as ste
 import geojson
 from geojson import MultiLineString
-import geohash
+import pygeohash
 from shapely import geometry
 import fiona
 
@@ -52,7 +52,7 @@ def is_geohash_in_bounding_box(current_geohash, bbox_coordinates):
     :return: true if the the center of the geohash is in the bounding box
     """
 
-    coordinates = geohash.decode(current_geohash)
+    coordinates = pygeohash.decode(current_geohash)
     geohash_in_bounding_box = (bbox_coordinates[0] < coordinates[0] < bbox_coordinates[2]) and (
             bbox_coordinates[1] < coordinates[1] < bbox_coordinates[3])
     return geohash_in_bounding_box
@@ -64,7 +64,7 @@ def build_geohash_box(current_geohash):
     :return: a list representation of th polygon
     """
 
-    b = geohash.bbox(current_geohash)
+    b = pygeohash.bbox(current_geohash)
     polygon = [(b['w'], b['s']), (b['w'], b['n']), (b['e'], b['n']), (b['e'], b['s'],), (b['w'], b['s'])]
     return polygon
 
@@ -82,13 +82,13 @@ def compute_geohash_tiles(bbox_coordinates):
     center_latitude = (bbox_coordinates[0] + bbox_coordinates[2]) / 2
     center_longitude = (bbox_coordinates[1] + bbox_coordinates[3]) / 2
 
-    center_geohash = geohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
+    center_geohash = pygeohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
     geohashes.append(center_geohash)
     geohash_stack.add(center_geohash)
     checked_geohashes.add(center_geohash)
     while len(geohash_stack) > 0:
         current_geohash = geohash_stack.pop()
-        neighbors = geohash.neighbors(current_geohash)
+        neighbors = pygeohash.neighbors(current_geohash)
         for neighbor in neighbors:
             if neighbor not in checked_geohashes and is_geohash_in_bounding_box(neighbor, bbox_coordinates):
                 geohashes.append(neighbor)
@@ -121,15 +121,15 @@ def compute_geohash_tiles_from_polygon(polygon):
     center_latitude = polygon.centroid.coords[0][1]
     center_longitude = polygon.centroid.coords[0][0]
 
-    center_geohash = geohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
+    center_geohash = pygeohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
     geohashes.append(center_geohash)
     geohash_stack.add(center_geohash)
     checked_geohashes.add(center_geohash)
     while len(geohash_stack) > 0:
         current_geohash = geohash_stack.pop()
-        neighbors = geohash.neighbors(current_geohash)
+        neighbors = pygeohash.neighbors(current_geohash)
         for neighbor in neighbors:
-            point = geometry.Point(geohash.decode(neighbor)[::-1])
+            point = geometry.Point(pygeohash.decode(neighbor)[::-1])
             if neighbor not in checked_geohashes and polygon.contains(point):
                 geohashes.append(neighbor)
                 geohash_stack.add(neighbor)
