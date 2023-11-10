@@ -71,7 +71,7 @@ with col1:
                               
         df_map = df.drop_duplicates(subset=["ID"], keep='last')
         m = folium.Map(max_zoom = 21,
-                    tiles='stamenterrain',
+                    tiles='cartodbpositron',
                     zoom_start=14,
                     control_scale=True
                     )

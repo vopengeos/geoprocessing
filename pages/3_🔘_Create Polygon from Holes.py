@@ -163,7 +163,7 @@ with form:
           
         with col1:   
             fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
-            m = folium.Map(tiles='stamenterrain', location = [center_lat, center_lon], zoom_start=4)           
+            m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)           
             folium.GeoJson(gdf, name = layer_name,  
                            style_function = style_function, 
                            highlight_function=highlight_function,
@@ -191,7 +191,7 @@ with form:
                     center = target.dissolve().centroid
                     center_lon, center_lat = center.x, center.y             
                     fields = [ column for column in target.columns if column not in target.select_dtypes('geometry')]
-                    m = folium.Map(tiles='stamentoner', location = [center_lat, center_lon], zoom_start=4)
+                    m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)
                     folium.GeoJson(target,  
                                    style_function = style_function, 
                                    highlight_function=highlight_function,

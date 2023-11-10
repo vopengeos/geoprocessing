@@ -326,7 +326,7 @@ with col1:
             st.write(df)
             maen_lat_column =  df[lat_column].mean()    
             maen_lon_column =  df[lon_column].mean()
-            m = folium.Map(tiles="stamenterrain", location = [maen_lat_column,maen_lon_column], zoom_start =4)
+            m = folium.Map(tiles="cartodbpositron", location = [maen_lat_column,maen_lon_column], zoom_start =4)
             Fullscreen(                                                         
                 position                = "topright",                                   
                 title                   = "Open full-screen map",                       

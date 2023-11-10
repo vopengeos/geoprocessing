@@ -9,11 +9,11 @@ import geopandas as gpd
 import streamlit_ext as ste
 import geojson
 from geojson import MultiLineString
-import pygeohash
+from  becalib import geohash
 from shapely import geometry
 import fiona
 
-
+GEOHASH_PRECISION = 8
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -52,7 +52,7 @@ def is_geohash_in_bounding_box(current_geohash, bbox_coordinates):
     :return: true if the the center of the geohash is in the bounding box
     """
 
-    coordinates = pygeohash.decode(current_geohash)
+    coordinates = geohash.decode(current_geohash)
     geohash_in_bounding_box = (bbox_coordinates[0] < coordinates[0] < bbox_coordinates[2]) and (
             bbox_coordinates[1] < coordinates[1] < bbox_coordinates[3])
     return geohash_in_bounding_box
@@ -64,7 +64,7 @@ def build_geohash_box(current_geohash):
     :return: a list representation of th polygon
     """
 
-    b = pygeohash.bbox(current_geohash)
+    b = geohash.bbox(current_geohash)
     polygon = [(b['w'], b['s']), (b['w'], b['n']), (b['e'], b['n']), (b['e'], b['s'],), (b['w'], b['s'])]
     return polygon
 
@@ -82,13 +82,13 @@ def compute_geohash_tiles(bbox_coordinates):
     center_latitude = (bbox_coordinates[0] + bbox_coordinates[2]) / 2
     center_longitude = (bbox_coordinates[1] + bbox_coordinates[3]) / 2
 
-    center_geohash = pygeohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
+    center_geohash = geohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
     geohashes.append(center_geohash)
     geohash_stack.add(center_geohash)
     checked_geohashes.add(center_geohash)
     while len(geohash_stack) > 0:
         current_geohash = geohash_stack.pop()
-        neighbors = pygeohash.neighbors(current_geohash)
+        neighbors = geohash.neighbors(current_geohash)
         for neighbor in neighbors:
             if neighbor not in checked_geohashes and is_geohash_in_bounding_box(neighbor, bbox_coordinates):
                 geohashes.append(neighbor)
@@ -108,8 +108,8 @@ def compute_geohash_tiles(bbox_coordinates):
 #         f.write(geojson.dumps(ghash_polygon, sort_keys=True).encode('utf-8'))
 
 def compute_geohash_tiles_from_polygon(polygon):
+    # convert GeoSeries to shapely geometry
     """Computes all hex tile in the given polygon
-
     :param polygon: the polygon
     :return: a list of geohashes
     """
@@ -121,15 +121,15 @@ def compute_geohash_tiles_from_polygon(polygon):
     center_latitude = polygon.centroid.coords[0][1]
     center_longitude = polygon.centroid.coords[0][0]
 
-    center_geohash = pygeohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
+    center_geohash = geohash.encode(center_latitude, center_longitude, precision=GEOHASH_PRECISION)
     geohashes.append(center_geohash)
     geohash_stack.add(center_geohash)
     checked_geohashes.add(center_geohash)
     while len(geohash_stack) > 0:
         current_geohash = geohash_stack.pop()
-        neighbors = pygeohash.neighbors(current_geohash)
+        neighbors = geohash.neighbors(current_geohash)
         for neighbor in neighbors:
-            point = geometry.Point(pygeohash.decode(neighbor)[::-1])
+            point = geometry.Point(geohash.decode(neighbor)[::-1])
             if neighbor not in checked_geohashes and polygon.contains(point):
                 geohashes.append(neighbor)
                 geohash_stack.add(neighbor)
@@ -172,75 +172,115 @@ def highlight_function(feature):
     # 'dashArray': '5, 5'
 }
 
+def create_geohash_grid(min_lat, max_lat, min_lon, max_lon, precision):
+    grid = {}
+    
+    # Encode the corners of the bounding box
+    sw = geohash.encode(min_lat, min_lon, precision=precision)
+    ne = geohash.encode(max_lat, max_lon, precision=precision)
+    
+    # Decode the geohashes to get the latitudes and longitudes
+    sw_lat, sw_lon= geohash.decode(sw)
+    ne_lat, ne_lon = geohash.decode(ne)
+    
+    # Iterate through the rows and columns of the grid
+    for lat in range(int(sw_lat), int(ne_lat) + 1):
+        for lon in range(int(sw_lon), int(ne_lon) + 1):
+            # Encode each cell's center to get the geohash
+            cell_center_lat = lat + 0.5
+            cell_center_lon = lon + 0.5
+            cell_geohash = geohash.encode(cell_center_lat, cell_center_lon, precision=precision)
+            
+            # Add the geohash to the grid
+            if cell_geohash not in grid:
+                grid[cell_geohash] = {'latitude': cell_center_lat, 'longitude': cell_center_lon}
+    
+    return grid
 
-form = st.form(key="geohash")
-with form:   
-    url = st.text_input(
-            "Enter a URL to a polygon dataset",
-            "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/vn_vietnam.geojson",
-        )
 
-    uploaded_file = st.file_uploader(
-            "Upload a polygon dataset", type=["geojson", "kml", "zip", "tab"]
-        )
 
-    if  url or uploaded_file:
-        if url:
-            file_path = url
-            layer_name = url.split("/")[-1].split(".")[0]
-        if uploaded_file:
-            file_path = save_uploaded_file(uploaded_file, uploaded_file.name)
-            layer_name = os.path.splitext(uploaded_file.name)[0]    
+min_latitude = 37.0
+max_latitude = 38.0
+min_longitude = -122.0
+max_longitude = -121.0
+precision = 12
 
-        if file_path.lower().endswith(".kml"):
-            fiona.drvsupport.supported_drivers["KML"] = "rw"
-            gdf = gpd.read_file(file_path, driver="KML")
-        else:
-            gdf = gpd.read_file(file_path)
+grid = create_geohash_grid(min_latitude, max_latitude, min_longitude, max_longitude, precision)
+
+# Print the grid
+for geohash, coordinates in grid.items():
+    st.write(f"Geohash: {geohash}, Coordinates: {coordinates}")
+
+
+# form = st.form(key="geohash")
+# with form:   
+#     url = st.text_input(
+#             "Enter a URL to a polygon dataset",
+#             "https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/vn_vietnam.geojson",
+#         )
+
+#     uploaded_file = st.file_uploader(
+#             "Upload a polygon dataset", type=["geojson", "kml", "zip", "tab"]
+#         )
+
+#     if  url or uploaded_file:
+#         if url:
+#             file_path = url
+#             layer_name = url.split("/")[-1].split(".")[0]
+#         if uploaded_file:
+#             file_path = save_uploaded_file(uploaded_file, uploaded_file.name)
+#             layer_name = os.path.splitext(uploaded_file.name)[0]    
+
+#         if file_path.lower().endswith(".kml"):
+#             fiona.drvsupport.supported_drivers["KML"] = "rw"
+#             gdf = gpd.read_file(file_path, driver="KML")
+#         else:
+#             gdf = gpd.read_file(file_path)
         
-        origin_crs = gdf.crs
-        gdf.to_crs(3857)
-        center = gdf.dissolve().centroid
-        center_lon, center_lat = center.x, center.y
-        gdf.to_crs(origin_crs)
+#         origin_crs = gdf.crs
+#         gdf.to_crs(3857)
+#         center = gdf.dissolve().centroid
+#         center_lon, center_lat = center.x, center.y
+#         gdf.to_crs(origin_crs)
 
-        with col1:   
-            fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
-            m = folium.Map(tiles='openstreetmap', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)           
-            folium.GeoJson(gdf, name = layer_name,  
-                           style_function = style_function, 
-                           highlight_function=highlight_function,
-                           marker = folium.Marker(icon=folium.Icon(
-                                     icon='ok-circle',
-                                     color = 'purple'
-                                     )),     
-                            # marker =  folium.CircleMarker(fill=True),
-                            # zoom_on_click = True,
-                           popup = folium.GeoJsonPopup(
-                           fields = fields
-                            )).add_to(m)
+#         with col1:   
+#             fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
+#             m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)           
+#             folium.GeoJson(gdf, name = layer_name,  
+#                            style_function = style_function, 
+#                            highlight_function=highlight_function,
+#                            marker = folium.Marker(icon=folium.Icon(
+#                                      icon='ok-circle',
+#                                      color = 'purple'
+#                                      )),     
+#                             # marker =  folium.CircleMarker(fill=True),
+#                             # zoom_on_click = True,
+#                            popup = folium.GeoJsonPopup(
+#                            fields = fields
+#                             )).add_to(m)
            
-            m.fit_bounds(m.get_bounds(), padding=(30, 30))
-            folium_static(m, width = 600)
+#             m.fit_bounds(m.get_bounds(), padding=(30, 30))
+#             folium_static(m, width = 600)
         
-        submitted = st.form_submit_button("Create Center Lines")        
-        if submitted:
-            # target = create_centerline(gdf,1)            
-            target = compute_geohash_tiles_from_polygon(gdf,interpolation_distance=0.00001)
-            with col2:
-                if not target.empty: 
-                    center = target.dissolve().centroid
-                    center_lon, center_lat = center.x, center.y             
-                    fields = [ column for column in target.columns if column not in target.select_dtypes('geometry')]
-                    m = folium.Map(tiles='openstreetmap', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)
-                    folium.GeoJson(target,  
-                                   style_function = style_function, 
-                                   highlight_function=highlight_function,                                   
-                                   popup = folium.GeoJsonPopup(
-                                   fields = fields
-                                    )).add_to(m)
+#         submitted = st.form_submit_button("Create Geohash Tiles")        
+#         if submitted:
+#             # target = create_centerline(gdf,1)            
+#             target = compute_geohash_tiles_from_polygon(gdf)
+#             st.write(target)
+#             with col2:
+#                 if not target.empty: 
+#                     center = target.dissolve().centroid
+#                     center_lon, center_lat = center.x, center.y             
+#                     fields = [ column for column in target.columns if column not in target.select_dtypes('geometry')]
+#                     m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)
+#                     folium.GeoJson(target,  
+#                                    style_function = style_function, 
+#                                    highlight_function=highlight_function,                                   
+#                                    popup = folium.GeoJsonPopup(
+#                                    fields = fields
+#                                     )).add_to(m)
    
-                    m.fit_bounds(m.get_bounds(), padding=(30, 30))
-                    folium_static(m, width = 600)     
-                    target =  target.to_crs(origin_crs)
-                    download_geojson(target, layer_name)   
+#                     m.fit_bounds(m.get_bounds(), padding=(30, 30))
+#                     folium_static(m, width = 600)     
+#                     target =  target.to_crs(origin_crs)
+#                     download_geojson(target, layer_name)   

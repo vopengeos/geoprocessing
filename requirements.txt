@@ -18,7 +18,6 @@ geocoder
 pykalman
 centerline
 osmium
-pygeohash
 geojson
 fmm
 polyline

@@ -22,7 +22,7 @@ st.write('Rectangle')
 
 
 m = folium.Map(location=[10.775282967747945, 106.70633939229438],
-                tiles='stamenterrain',
+                tiles='cartodbpositron',
                 zoom_start=14,
                 control_scale=True
                 )

@@ -137,7 +137,7 @@ with col1:
         coordinates = [[df.iloc[0].longitude, df.iloc[0].latitude], [df.iloc[-1].longitude, df.iloc[-1].latitude]]
         routers_selected = st.multiselect('Choose one or more routing engines: ', routers, default=routers )
         m = folium.Map(max_zoom = 21,
-                    tiles='stamenterrain',
+                    tiles='cartodbpositron',
                     zoom_start=14,
                     control_scale=True
                     )
@@ -203,7 +203,7 @@ if submitted:
         center = start_end_df.dissolve().centroid
         center_lon, center_lat = center.x, center.y          
         m = folium.Map(max_zoom = 21,
-                        tiles='stamenterrain',
+                        tiles='cartodbpositron',
                         zoom_start=14,
                         location = [center_lat, center_lon],
                         control_scale=True

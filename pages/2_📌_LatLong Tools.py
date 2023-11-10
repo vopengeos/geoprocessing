@@ -55,7 +55,7 @@ antipode_lng = None
 
 col1, col2 = st.columns(2)
 with col1: 
-    m = folium.Map(tiles="stamenterrain", location = [10.77588,106.70388], zoom_start =15)
+    m = folium.Map(tiles="cartodbpositron", location = [10.77588,106.70388], zoom_start =15)
     # m = folium.Map( tiles = 'https://grid.plus.codes/grid/tms/{z}/{x}/{y}.png', attr='Google Plus Code Grid')
     markers = m.add_child(folium.ClickForMarker())
     LocateControl(auto_start=True).add_to(m)
@@ -210,7 +210,7 @@ with col2:
             lng = float(latlng.split(',')[1].strip())
             marker = folium.Marker(location=[lat, lng], popup='Latitude: '+ str('{:.4f}'.format(lat)) + '\nLongitude: ' + str('{:.4f}'.format(lng)), icon=folium.Icon(color='red', icon='globe', prefix='fa'))                                                                                               
             # Add the marker to the existing map
-            custom_m = folium.Map(tiles="stamenterrain", location = [lat,lng], zoom_start =15)
+            custom_m = folium.Map(tiles="cartodbpositron", location = [lat,lng], zoom_start =15)
             custom_m.add_child(marker)
             custom_map = folium_static(custom_m, width = 510, height = 450)
 
@@ -307,7 +307,7 @@ with col2:
             st.caption("➝ :blue[Antipodal Coordinates:]") 
             st.code(antipodal_coordinates)
            
-            antipodal_m = folium.Map(tiles="stamenterrain",zoom_start = 12) 
+            antipodal_m = folium.Map(tiles="cartodbpositron",zoom_start = 12) 
             if antipode_lat is not None:
                 marker = folium.Marker(location=[antipode_lat, antipode_lng], icon=folium.Icon(color='green', icon='globe', prefix='fa'), popup='Latitude: '+ str('{:.4f}'.format(antipode_lat)) + '\nLongitude: ' + str('{:.4f}'.format(antipode_lng)))
                 antipodal_m.add_child(marker)
