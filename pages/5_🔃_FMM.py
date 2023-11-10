@@ -221,7 +221,7 @@
 # #             df = pd.read_csv(uploaded_file,encoding = "UTF-8")
 # #             layer_name = os.path.splitext(uploaded_file.name)[0]
 # #         m = folium.Map(max_zoom = 21,
-# #                     tiles='openstreetmap',
+# #                     tiles='cartodbpositron',
 # #                     zoom_start=14,
 # #                     control_scale=True
 # #                     )
