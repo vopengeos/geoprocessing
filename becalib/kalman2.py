@@ -1,15 +1,8 @@
-# from pykalman import KalmanFilter
-# import numpy as np
-# kf = KalmanFilter(transition_matrices = [[1, 1], [0, 1]], observation_matrices = [[0.1, 0.5], [-0.3, 0.0]])
-# measurements = np.asarray([[1,0], [0,0], [0,1]])  # 3 observations
-# kf = kf.em(measurements, n_iter=5)
-# (filtered_state_means, filtered_state_covariances) = kf.filter(measurements)
-# (smoothed_state_means, smoothed_state_covariances) = kf.smooth(measurements)
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv('./Data/28092023/WayPoint_20230928142403.csv') 
+df = pd.read_csv('./Data/csv/gps_noise_2.csv') 
 df.head(1000)
 lat = np.array([df.latitude])
 print(lat)
@@ -115,7 +108,7 @@ for coord_pair in coord_output:
     print("--------")
 
 # print(line_actual)
-print(coord_output)
+# print(coord_output)
 
 
 df2= pd.DataFrame(coord_output)
@@ -123,25 +116,25 @@ print(df2)
 
 Actual = df2[0] 
 Prediction = df2[1]
-print (Actual)
-print(Prediction)
+# print (Actual)
+# print(Prediction)
 
 
 Actual_df = pd.DataFrame(Actual)
 Prediction_df = pd.DataFrame(Prediction)
-print(Actual_df)
-print(Prediction_df)
+# print(Actual_df)
+# print(Prediction_df)
 
 
 Actual_coord = pd.DataFrame(Actual_df[0].to_list(), columns = ['latitude','longitude'])
-Actual_coord.to_csv('./Data/28092023/WayPoint_20230928142403_Actual_noise.csv')
+Actual_coord.to_csv('./Data/csv/gps_noise_2_Actual_noise.csv')
 
 Prediction_coord = pd.DataFrame(Prediction_df[1].to_list(), columns = 
 ['latitude', 'longitude'])
-Prediction_coord.to_csv('./Data/28092023/WayPoint_20230928142403_prediction_noise.csv')
+Prediction_coord.to_csv('./Data/csv/gps_noise_2_prediction_noise.csv')
 
-print (Actual_coord)
-print (Prediction_coord)
+# print (Actual_coord)
+# print (Prediction_coord)
 
 Actual_coord.plot(kind='scatter',x='longitude',y='latitude',color='red')
 plt.show()
