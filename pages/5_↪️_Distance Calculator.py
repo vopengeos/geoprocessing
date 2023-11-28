@@ -313,6 +313,8 @@ def traveledDistance2(data):
                         distance_temp = route['distance']
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
+        if distance_temp> 10000:
+            distance_temp = 0
         totalDistance += distance_temp   
     st.write('Number of using map matching in distance calculation: ', count, mapmatching_index,'Crow fly distance: ' , crowfly_distance, 'Map matching Distance: ', mapmatching_distance)
     totalDistance_km = round(totalDistance/1000, 3)
