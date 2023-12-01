@@ -19,3 +19,4 @@ geojson
 polyline
 pyrosm
 pydeck
+h3

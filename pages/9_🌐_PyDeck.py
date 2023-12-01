@@ -8,6 +8,7 @@ from folium.plugins import MarkerCluster, FastMarkerCluster, Fullscreen
 import pandas as pd
 import streamlit_ext as ste
 import geopandas as gpd
+import h3
 
 st.set_page_config(layout="wide")
 st.sidebar.info(
@@ -29,6 +30,13 @@ st.write('PyDeck Point Rendering')
 
 
 col1, col2 = st.columns(2)
+
+@st.cache_data
+def load_data(csv_file):
+    # Load data from CSV file
+    data = pd.read_csv(csv_file,encoding = "UTF-8")
+    return data
+
 
 @st.cache_data
 def download_csv(df):  
@@ -54,19 +62,22 @@ def download_geojson(df):
             data=geojson
         ) 
 
+
 with col1:
     url = st.text_input(
         "Enter a CSV URL with Latitude and Longitude Columns",
-        'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/india_points.csv'
+         'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/india_points.csv'
         # 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/3d-heatmap/heatmap-data.csv'
     )
     uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
     lat_column_index, lon_column_index = 0,0     
     if url:   
-        df = pd.read_csv(url,skiprows=[1],encoding = "UTF-8")                
+        df = load_data(url)  
+                    
     if uploaded_file:        
-        df = pd.read_csv(uploaded_file,skiprows=[1],encoding = "UTF-8")
-    
+        df =load_data(uploaded_file)
+    st.write ('No. of records:', len(df))
+
     for column in df.columns:
             if (column.lower() == 'y' or column.lower().startswith("lat") or column.lower().startswith("n")):
                 lat_column_index=df.columns.get_loc(column)
@@ -85,18 +96,19 @@ with col1:
             ['HeatmapLayer', 'ScatterplotLayer', 'HexagonLayer' ]
             )
 
-        st.write('You selected:', options)
+        # st.write('You selected:', options)
                           
         submitted = st.form_submit_button("PyDeck Point Render")        
     # st.write(df)
 
+def get_h3_index(row):
+    return h3.geo_to_h3(row[lat_column], row[lon_column], resolution=3)  # Adjust resolution as needed
 
 if submitted:           
     with col2:    
         maen_lat_column =  df[lat_column].mean()    
         maen_lon_column =  df[lon_column].mean()
-        view_state = pdk.ViewState(latitude=maen_lat_column, longitude=maen_lat_column, bearing=0, pitch=20, zoom=9)
-        
+
         scatterplot_layer = pdk.Layer(
             'ScatterplotLayer',     # Change the `type` positional argument here
             df,
@@ -106,6 +118,25 @@ if submitted:
             get_fill_color=[180, 0, 200, 140],  # Set an RGBA value for fill
             pickable=True)
 
+        icon_layer = pdk.Layer(
+                'IconLayer',
+                data=df,
+                get_position=[lon_column, lat_column],
+                # get_icon='your_icon_column_name',  # Replace 'your_icon_column_name' with the column containing icon information
+                get_size=50,
+                pickable=True,
+                auto_highlight=True,
+        )
+        
+        tooltip = {
+            'html': '<b>Count:</b> {elevationValue}',
+            'style': {
+                'backgroundColor': 'steelblue',
+                'color': 'white',
+                'fontSize': '12px',
+            }
+        }
+        
         hexagon_layer = pdk.Layer(
             'HexagonLayer',
             df,
@@ -113,43 +144,93 @@ if submitted:
             auto_highlight=True,
             elevation_scale=100,
             pickable=True,
-            elevation_range=[0, 100],
+            elevation_range=[0, 1000],
             extruded=True,
-            coverage=1,
+            radius = 100000,
+            upperPercentile = 100,
+            coverage=1                 
         )     
+      
+        hexagon_layer.tooltip = tooltip
 
+        heatmap_layer = pdk.Layer(
+            'HeatmapLayer',
+            data=df,
+            get_position=[lon_column, lat_column],
+            # get_weight='weight',
+            opacity=0.8,
+            threshold=0.3,
+            aggregation='SUM'
+        )
         
 
+        grid_layer = pdk.Layer(
+            "GridLayer",
+            df,
+            get_position=[lon_column, lat_column],
+            cell_size=1000,  # Adjust cell size as needed
+            elevation_scale=50,
+            pickable=True,
+            extruded=True,
+        )
+        
+        pointcloud_layer = pdk.Layer(
+            'PointCloudLayer',
+            data=df,
+            get_position=[lon_column, lat_column],
+            get_color=[255, 255, 255],
+            get_normal=[0, 0, 15],
+            auto_highlight=True,
+            pickable=True,
+            point_size=3,
+        )
+        view = pdk.View(type="OrbitView", controller=True)
+
+        cluster_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=df,
+                get_position=[lon_column, lat_column],
+                get_radius=1000,
+                get_fill_color=[0, 255, 255, 120],
+            )
+        
+        # df['hex'] = df.apply(get_h3_index, axis=1)
+        # # Group points by H3 indexes to cluster them and count points in each hexagon
+        # df = df.groupby('hex').size().reset_index(name='count')
+        # st.write(df)
+
+        # # df = pd.read_json(H3_HEX_DATA)
+
+        # # Define a layer to display on a map
+        # h3hexagon_layer = pdk.Layer(
+        #     "H3HexagonLayer",
+        #     df,
+        #     pickable=True,
+        #     stroked=True,
+        #     filled=True,
+        #     extruded=False,
+        #     get_hexagon="hex",
+        #     get_fill_color="[255, count/10, 0, 60]",
+        #     get_line_color=[255 , 255, 255],
+        #     line_width_min_pixels=2,
+        # )
+
+        # Render
+        
+        view_state = pdk.ViewState(latitude=df[lat_column].mean() , longitude=df[lon_column].mean(), bearing=0, pitch=20, zoom=4)
+        # view_state = pdk.ViewState(latitude=37.7749295, longitude=-122.4194155, zoom=14, bearing=0, pitch=30)
+
+
+        
         deck = pdk.Deck(
         # map_style='mapbox://styles/mapbox/light-v9',
         initial_view_state=view_state,
-        map_style=None,
+        # map_style=None,
         # layers=[scatterplot_layer,hexagon_layer]
-        layers=[scatterplot_layer]
+        layers=[cluster_layer],
+        # tooltip={"text": "Count: {count}"},
         )
-
 
         st.pydeck_chart(deck)
         # deck.to_html("pydeck.html")
-        # maen_lat_column =  df[lat_column].mean()    
-        # maen_lon_column =  df[lon_column].mean()
-        # m = folium.Map(tiles="cartodbpositron", location = [maen_lat_column,maen_lon_column], zoom_start =4)
-        # Fullscreen(                                                         
-        #     position                = "topright",                                   
-        #     title                   = "Open full-screen map",                       
-        #     title_cancel            = "Close full-screen map",                      
-        #     force_separate_button   = True,                                         
-        # ).add_to(m)             
-        # cluster = MarkerCluster()
-        # for i, j in df.iterrows():
-        #     icon=folium.Icon(color='purple', icon='ok-circle')
-        #     # iframe = folium.IFrame(popContent)
-        #     # popup = folium.Popup(popContent,min_width=200,max_width=200) 
-        #     popup = j.to_frame().to_html()
-        #     folium.Marker(location=[df.loc[i,lat_column], df.loc[i, lon_column]], icon=icon, popup=popup).add_to(cluster)
-                                                                                                                    
-        # m.add_child(cluster)            
-        # folium_static(m, width = 600)
-        # download_csv(df)
-        # download_geojson(df)
-
+        
