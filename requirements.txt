@@ -15,10 +15,7 @@ scikit-learn
 routingpy
 geopy
 geocoder
-pykalman
-centerline
-osmium
 geojson
-fmm
 polyline
-geohash
+pyrosm
+pydeck

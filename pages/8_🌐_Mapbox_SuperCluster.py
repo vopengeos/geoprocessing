@@ -31,8 +31,8 @@ st.sidebar.info(
     """
 )
 
-st.title("Mapbox SupreCluster")
-st.write('Mapbox SupreCluster')
+st.title("Mapbox SuperCluster")
+st.write('Mapbox SuperCluster')
 
 
 col1, col2 = st.columns(2)
