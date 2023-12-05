@@ -227,7 +227,7 @@ if submitted:
         initial_view_state=view_state,
         # map_style=None,
         # layers=[scatterplot_layer,hexagon_layer]
-        layers=[cluster_layer],
+        layers=[scatterplot_layer],
         # tooltip={"text": "Count: {count}"},
         )
 
