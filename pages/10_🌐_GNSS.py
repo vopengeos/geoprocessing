@@ -4,7 +4,10 @@ import io
 import pandas as pd
 from datetime import datetime
 import altair as alt
-import leafmap
+import folium
+from folium.plugins import MarkerCluster, FastMarkerCluster, Fullscreen
+from streamlit_folium import st_folium, folium_static
+import streamlit_ext as ste
 
 # Streamlit app
 st.set_page_config(layout="wide")
@@ -45,6 +48,8 @@ def get_csv_from_ftp(host, username, password, folder, filename):
     df['longitude'] = df['longitude']/100
     df['time'] = df['time'].str[:6]
     df['datetime'] = pd.to_datetime(date_str+df['time'], format='%Y%m%d%H%M%S')
+    # df['time'] = df['datetime'].dt.time
+
     # time_str = df['time']
     return df
 
@@ -68,7 +73,7 @@ def ftp_login(host, username, password):
         return None
 
 with col1:
-    form = st.form(key="timeseries_visualization")
+    form = st.form(key="login")
     with form:
         ftp_server = st.text_input("FTP Host",'ftp.quantraccongtrinh.com')
         ftp_username = st.text_input("Username",'tester1@quantraccongtrinh.com')
@@ -95,64 +100,64 @@ with col1:
                     #     st.write(file)
                     # Add double-click event handling
                     selected_file = st.selectbox('Select a CSV file:', csv_files)
-                    st.write(f"Selected file: {selected_file}")
-                    # Get selected CSV file from FTP
-                    selected_csv_data = get_csv_from_ftp(ftp_server,ftp_username, ftp_password, ftp_folder, selected_file)
-                    st.write(selected_csv_data)  
-                    c = (
-                    alt.Chart(selected_csv_data)
-                    .mark_point() #mark_bar()/ mark_point()/ mark_line(), mark_circle()
-                    .encode(
-                            x=("datetime:T"), 
-                            # x=alt.X("datetime:T", axis=alt.Axis(
-                            #     format="%Y-%M-%D", 
-                            #     labelOverlap=True, 
-                            #     labelAngle=-45,
-                            #     tickCount=len(df.date),
-                            # )),
-                            y="altitude", 
-                            color="id", tooltip=["id","datetime","altitude"]
-                            )
-                    ).interactive()                  
+                    # selected_file = st.table(csv_files)
 
-                    st.altair_chart(c, use_container_width=True)
-                    st.write(selected_csv_data['altitude'].describe())
+                    # form = st.form(key="display")
+                    # with form:
+                        # display  = st.form_submit_button("Display")    
+                    display = st.button('Display')
+                    if (display):
+                            # st.write(f"Selected file: {selected_file}")
+                            # # Get selected CSV file from FTP
+                            # df = get_csv_from_ftp(ftp_server,ftp_username, ftp_password, ftp_folder, selected_file)
+                            # st.write(df) 
+                            # min_altitude = df['altitude'].min()
+                            # max_altitude = df['altitude'].max()
+                            # line = alt.Chart(df).mark_line().encode(
+                            #     x='time',
+                            #     y='altitude',
+                            #     )
+                            
+                            # points = alt.Chart(df).mark_point().encode(                        
+                            #     x=alt.X("time", axis=alt.Axis(
+                            #                 labelOverlap=True, 
+                            #                 labelAngle=-45,
+                            #                 # tickCount=len(df['datetime']),
+                            #             )),
+                            #     y=alt.Y('altitude', scale=alt.Scale(domain=[min_altitude,max_altitude])),
+                            #     color=alt.value('red'),
+                            #     tooltip=["time","altitude"]
+                            #     )
+                            # c = (alt.layer(points, line)).interactive()                   
+
+                            # st.altair_chart(c, use_container_width=True)
+
+                            # # m = folium.Map(tiles = "https://maps.becagis.vn/tiles/basemap/light/{z}/{x}/{y}.png", attr="BecaGIS Maps", location = [df['latitude'].mean(), df['longitude'].mean() ], zoom_start =12)
+                            # m = folium.Map(tiles='cartodbdark_matter', location = [df['latitude'].mean(), df['longitude'].mean() ], zoom_start =12)
+
+                            # Fullscreen(                                                         
+                            #     position                = "topright",                                   
+                            #     title                   = "Open full-screen map",                       
+                            #     title_cancel            = "Close full-screen map",                      
+                            #     force_separate_button   = True,                                         
+                            # ).add_to(m)             
+                            # cluster = MarkerCluster()
+                            # for latitude, longigude, Datetime, Altitude in zip(df.latitude, df.longitude, df.datetime, df.altitude):
+                            #     # color = 'purple'
+                            #     icon=folium.Icon(icon='ok-circle')
+                            #     popContent = ("Datetime: " + str(Datetime) + '<br>'+\
+                            #                 "Altitude: " + str(Altitude) + '<br>'                               
+                            #                 # "WQI_Level: " +  "<font color=" + color + ">" + str(WQI_Level) + "</font> ")
+                            #                 )   
+                            #     iframe = folium.IFrame(popContent)
+                            #     popup = folium.Popup(iframe,
+                            #                         min_width=200,
+                            #                         max_width=200)   
+                            #     folium.Marker(location=[latitude, longigude], icon=icon, popup=popup).add_to(cluster)    
+                            # m.add_child(cluster)            
+                            # folium_static(m, width = 700)
+                            # st.write(df['altitude'].describe())
+                            st.warning('selected_file')
+
                 else:
                     st.write("No CSV files found in the chosen folder.")
-
-            # if ftp_server and ftp_username and ftp_password:
-            #     # Attempt to login to the FTP server
-            #     ftp_connection = ftp_login(ftp_server, ftp_username, ftp_password)
-            #     if ftp_connection:
-            #         # Perform actions after successful login
-            #         # Here you can add FTP operations that you want to perform after login
-            #         # List all files in the FTP directory
-            #         file_list = ftp_connection.nlst()
-            #         # Filter CSV files
-            #         csv_files = [file for file in file_list if file.lower().endswith('.txt')]
-
-            #         if len(csv_files) > 0:
-            #             selected_file = st.selectbox('Select a CSV file:', csv_files)
-            #             st.write(f"Selected file: {selected_file}")
-
-            #             # Get selected CSV file from FTP
-            #             selected_csv_data = get_csv_from_ftp(ftp_server,ftp_username, ftp_password, ftp_folder, selected_file)
-                        
-            #             # Display the content of the CSV file
-            #             st.write(selected_csv_data)
-            #         else:
-            #             st.write("No CSV files found in the FTP directory.")
-
-            #         # Close FTP connection
-            #         ftp_connection.quit()
-            # else:
-            #     st.warning("Please fill in all fields.")
-
-    # ftp = FTP(ftp_server)
-    # ftp.login(username, password)
-    # ftp.cwd(ftp_folder)
-
-
-
-
-
