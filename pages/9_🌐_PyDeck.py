@@ -66,8 +66,8 @@ def download_geojson(df):
 with col1:
     url = st.text_input(
         "Enter a CSV URL with Latitude and Longitude Columns",
-         'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/india_points.csv'
-        # 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/3d-heatmap/heatmap-data.csv'
+        #  'https://raw.githubusercontent.com/thangqd/geoprocessing/main/data/csv/india_points.csv'
+         'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/3d-heatmap/heatmap-data.csv'
     )
     uploaded_file = st.file_uploader("Or upload a CSV file with Latitude and Longitude Columns")
     lat_column_index, lon_column_index = 0,0     
@@ -146,7 +146,7 @@ if submitted:
             pickable=True,
             elevation_range=[0, 1000],
             extruded=True,
-            radius = 100000,
+            radius = 10000,
             upperPercentile = 100,
             coverage=1                 
         )     
@@ -227,6 +227,7 @@ if submitted:
         initial_view_state=view_state,
         # map_style=None,
         # layers=[scatterplot_layer,hexagon_layer]
+        # layers=[scatterplot_layer],
         layers=[scatterplot_layer],
         # tooltip={"text": "Count: {count}"},
         )

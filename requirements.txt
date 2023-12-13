@@ -20,3 +20,5 @@ polyline
 pyrosm
 pydeck
 h3
+pyspark
+apache-sedona
