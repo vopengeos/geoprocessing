@@ -407,7 +407,7 @@ if submitted:
         df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df['date_string'] = df['date_string'].astype(str)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
-        trackpoints_cleaned = gdp.GeoDataFrame(df, geometry=geometry, crs = 'epsg:4326')
+        trackpoints_cleaned = gdp.GeoDataFrame(removejumping(df), geometry=geometry, crs = 'epsg:4326')
         trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry')]
 
         # aggregate these points with the GrouBy
@@ -418,7 +418,7 @@ if submitted:
         st.write('Step 2/2: Distance Calculation')
         groupBy = ['driver', 'date_string', 'session']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
-        df = removejumping(df)
+        
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         geo_df = gdp.GeoDataFrame(df, geometry=geometry)
         # aggregate these points with the GrouBy
