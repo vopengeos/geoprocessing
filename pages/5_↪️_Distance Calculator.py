@@ -137,6 +137,26 @@ def removejumping(data):
     return filtered
 
 
+def removejumping_formap(data): 
+    filtered = data
+    outliers_index = []
+    for i in range (1, len(filtered)-1):  #except final jumping point! Ex: WayPoint_20230928142338.csv        
+        time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+        # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
+        if time_diff > 0:
+            velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
+            # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
+            if velocity >70 : #km/h,
+                # filtered = filtered.drop([i])
+                # st.write('Current Point: ',  data.iloc[i-1].datetime,  data.iloc[i-1].session, ' Jumping Point: ', data.iloc[i].datetime, data.iloc[i].session, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
+                outliers_index.append(data.iloc[i].datetime)            
+    # st.write(outliers_index)
+    filtered = filtered[filtered.datetime.isin(outliers_index) == False]   
+    # st.write ('After remove jumping point:', len(filtered)) 
+    return filtered
+
+
 def preProcessing(data, start_time, end_time, formular):
     filtered = data
     filtered['datetime'] = pd.to_datetime(filtered['datetime'])
@@ -264,8 +284,6 @@ def traveledDistance(data):
 def reverse_lat_long_linestring(linestring):
     reversed_coords = [(lng, lat) for lat, lng in linestring.coords]
     return LineString(reversed_coords)
-
-
 
 def traveledDistance2(data):
     # Remove jumping point groupeb by driver, date, session
@@ -410,7 +428,7 @@ if submitted:
         groupBy = ['driver', 'date_string', 'session']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
-        df_removejumping = removejumping(df)
+        df_removejumping = removejumping_formap(df)
         geometry = [Point(xy) for xy in zip(df_removejumping.longitude, df_removejumping.latitude)]
         trackpoints_cleaned = gdp.GeoDataFrame(df_removejumping, geometry=geometry, crs = 'epsg:4326')
         trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry')]
