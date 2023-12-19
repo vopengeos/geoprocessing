@@ -133,7 +133,7 @@ def removejumping(data):
                 outliers_index.append(data.iloc[i].datetime)            
     # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]   
-    st.write ('After remove jumping point:', len(filter)) 
+    st.write ('After remove jumping point:', len(filtered)) 
     return filtered
 
 
@@ -403,7 +403,7 @@ if submitted:
     with col2:        
         st.write('Step 1/2: Preprocessing')
         # df = smooth(df)
-        df = preProcessing(df, start_time, end_time, 'new') 
+        df = preProcessing(df, start_time, end_time, 'new')   
         df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df['date_string'] = df['date_string'].astype(str)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
@@ -418,7 +418,7 @@ if submitted:
         st.write('Step 2/2: Distance Calculation')
         groupBy = ['driver', 'date_string', 'session']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
-
+        df = removejumping(df)
         geometry = [Point(xy) for xy in zip(df.longitude, df.latitude)]
         geo_df = gdp.GeoDataFrame(df, geometry=geometry)
         # aggregate these points with the GrouBy
