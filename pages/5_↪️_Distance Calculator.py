@@ -133,7 +133,7 @@ def removejumping(data):
                 outliers_index.append(data.iloc[i].datetime)            
     # st.write(outliers_index)
     filtered = filtered[filtered.datetime.isin(outliers_index) == False]   
-    st.write ('After remove jumping point:' len(filter)) 
+    st.write ('After remove jumping point:', len(filter)) 
     return filtered
 
 
