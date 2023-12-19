@@ -132,7 +132,8 @@ def removejumping(data):
                 st.write('Current Point: ',  data.iloc[i-1].datetime,  data.iloc[i-1].session, ' Jumping Point: ', data.iloc[i].datetime, data.iloc[i].session, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
                 outliers_index.append(data.iloc[i].datetime)            
     # st.write(outliers_index)
-    filtered = filtered[filtered.datetime.isin(outliers_index) == False]    
+    filtered = filtered[filtered.datetime.isin(outliers_index) == False]   
+    st.write ('After remove jumping point:' len(filter)) 
     return filtered
 
 
