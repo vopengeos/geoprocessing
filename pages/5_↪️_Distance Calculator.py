@@ -187,6 +187,15 @@ def preProcessing(data, start_time, end_time, formular):
     # filtered = filtered.drop_duplicates(subset=["latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
     st.write('After delete duplicates: ', len(filtered))    
 
+    ############## Drop  track points with speed <=5    
+    first_row = filtered.iloc[[0]]
+    last_row = filtered.iloc[[-1]]
+    middle_rows =  filtered.iloc[1:-1][filtered['speed'] >5 ] 
+    filtered = pd.concat([first_row, middle_rows, last_row])
+    # filtered =  filtered[filtered['speed'] >5 ]
+
+    st.write('After delete track points with speed <=5: ', len(filtered))    
+
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     st.write(filtered)
     return filtered    
@@ -224,62 +233,62 @@ def osrm_route(start_lon, start_lat, end_lon, end_lat):
     return osrmroute
 
 
-def traveledDistance(data):
-    # Remove jumping point groupeb by driver, date, session
-    data = removejumping(data)    
-    totalDistance = 0
-    count = 0
-    shortestpath_index = []
-    shortestpath_distance = []
-    crowfly_distance = []
-    for i in range (1, len(data)):
-        velocity_diff = 0
-        time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
-        # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
-        # distance_temp = haversine((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        if time_diff>0:
-            velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
-        # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
-        #     # #distance_temp = 0
-        #     # st.write(data.iloc[i].datetime)     
+# def traveledDistance(data):
+#     # Remove jumping point groupeb by driver, date, session
+#     data = removejumping(data)    
+#     totalDistance = 0
+#     count = 0
+#     shortestpath_index = []
+#     shortestpath_distance = []
+#     crowfly_distance = []
+#     for i in range (1, len(data)):
+#         velocity_diff = 0
+#         time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+#         # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
+#         # distance_temp = haversine((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+#         distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+#         if time_diff>0:
+#             velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
+#         # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
+#         #     # #distance_temp = 0
+#         #     # st.write(data.iloc[i].datetime)     
     
-        if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
-            if velocity_diff > 5:   
-                st.write(data.iloc[i-1].datetime)
-                st.write(data.iloc[i].datetime)
-                st.write('velocity: ',  velocity_diff)
-                st.write('time_diff: ', time_diff)
-                st.write('distance_temp:', distance_temp)            
-                coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
-                api = OSRM(base_url="https://routing.openstreetmap.de/routed-foot/")
-                # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
-                route = api.directions(
-                profile='car',
-                locations= coor       
-                )
-                shortestpath_dict["time"].append(data.iloc[i - 1].datetime)
-                shortestpath_dict["distance"].append(route.distance)
-                shortestpath_dict["duration"].append(route.duration)
-                if (route.duration > 0):
-                    shortestpath_dict["speed"].append((route.distance/1000)/(route.duration/3600)) # km/h
-                else: shortestpath_dict["speed"].append(0)
+#         if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+#             if velocity_diff > 5:   
+#                 st.write(data.iloc[i-1].datetime)
+#                 st.write(data.iloc[i].datetime)
+#                 st.write('velocity: ',  velocity_diff)
+#                 st.write('time_diff: ', time_diff)
+#                 st.write('distance_temp:', distance_temp)            
+#                 coor = [[data.iloc[i - 1].longitude, data.iloc[i - 1].latitude], [data.iloc[i].longitude, data.iloc[i].latitude]]
+#                 api = OSRM(base_url="https://routing.openstreetmap.de/routed-foot/")
+#                 # print(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude, )
+#                 route = api.directions(
+#                 profile='car',
+#                 locations= coor       
+#                 )
+#                 shortestpath_dict["time"].append(data.iloc[i - 1].datetime)
+#                 shortestpath_dict["distance"].append(route.distance)
+#                 shortestpath_dict["duration"].append(route.duration)
+#                 if (route.duration > 0):
+#                     shortestpath_dict["speed"].append((route.distance/1000)/(route.duration/3600)) # km/h
+#                 else: shortestpath_dict["speed"].append(0)
 
-                crowfly_distance.append(round(distance_temp,2))
-                if route.distance  > 0:           
-                    shortestpath_distance.append(round(route.distance,2))
-                    shortestpath_index.append(data.iloc[i-1].datetime)  
-                    shortestpath_index.append(data.iloc[i].datetime)                     
-                    route_geometries.append(LineString(route.geometry))
-                    # st.write('shortestpath_geometries: ', route_geometries)
-                    count += 1                    
-                    distance_temp = route.distance    
-        # Access the route properties with .geometry, .duration, .distance                  
-        # print("Loop:", i, "timediff:", time_diff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
-        totalDistance += distance_temp
-    st.write('Number of using shortest path in distance calculation: ', count, shortestpath_index,'Crow fly distance: ' , crowfly_distance, 'Shortest Path Distance: ', shortestpath_distance)
-    totalDistance_km = round(totalDistance/1000, 3)
-    return totalDistance_km
+#                 crowfly_distance.append(round(distance_temp,2))
+#                 if route.distance  > 0:           
+#                     shortestpath_distance.append(round(route.distance,2))
+#                     shortestpath_index.append(data.iloc[i-1].datetime)  
+#                     shortestpath_index.append(data.iloc[i].datetime)                     
+#                     route_geometries.append(LineString(route.geometry))
+#                     # st.write('shortestpath_geometries: ', route_geometries)
+#                     count += 1                    
+#                     distance_temp = route.distance    
+#         # Access the route properties with .geometry, .duration, .distance                  
+#         # print("Loop:", i, "timediff:", time_diff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
+#         totalDistance += distance_temp
+#     st.write('Number of using shortest path in distance calculation: ', count, shortestpath_index,'Crow fly distance: ' , crowfly_distance, 'Shortest Path Distance: ', shortestpath_distance)
+#     totalDistance_km = round(totalDistance/1000, 3)
+#     return totalDistance_km
 
 def reverse_lat_long_linestring(linestring):
     reversed_coords = [(lng, lat) for lat, lng in linestring.coords]
@@ -332,6 +341,8 @@ def traveledDistance2(data):
                         st.write('mapmatching_geometries: ', route_geometries)
                         count += 1                    
                         distance_temp = route['distance']
+            ############# Not calculate walk points
+            else:     distance_temp = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         if distance_temp> 100000:
