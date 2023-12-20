@@ -188,13 +188,12 @@ def preProcessing(data, start_time, end_time, formular):
     st.write('After delete duplicates: ', len(filtered))    
 
     ############## Drop  track points with speed <=5    
-    first_row = filtered.iloc[[0]]
-    last_row = filtered.iloc[[-1]]
-    middle_rows =  filtered.iloc[1:-1][filtered['speed'] >5 ] 
-    filtered = pd.concat([first_row, middle_rows, last_row])
-    # filtered =  filtered[filtered['speed'] >5 ]
-
-    st.write('After delete track points with speed <=5: ', len(filtered))    
+    # first_row = filtered.iloc[[0]]
+    # last_row = filtered.iloc[[-1]]
+    # middle_rows = filtered.iloc[1:-1]
+    # filtered_middle_rows = middle_rows[middle_rows['speed'] >5]
+    # filtered = pd.concat([first_row, filtered_middle_rows, last_row])
+    # st.write('After delete track points with speed <=5: ', len(filtered))    
 
     filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
     st.write(filtered)
