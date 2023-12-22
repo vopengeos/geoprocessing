@@ -204,8 +204,8 @@ def osrm_route(start_lon, start_lat, end_lon, end_lat):
     # url = f'https://router.project-osrm.org/route/v1/aaaa/{start_lon},{start_lat};{end_lon},{end_lat}?alternatives=false&steps=true&overview=simplified' 
     # url = f'https://api-gw.sovereignsolutions.com/gateway/routing/india/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?alternatives=false&steps=true&overview=simplified&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
     # url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?steps=true&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
-    # url = f'https://router.project-osrm.org/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?alternatives=false&steps=true&overview=simplified' 
-    url= f'https://apim.vietbando.vn/gateway/osrm/in/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?steps=true&api-key=ca008f94-f895-4ddd-aa51-470388b7dcb4'
+    # url = f'https://router.project-osrm.org/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}' 
+    url= f'https://apim.vietbando.vn/gateway/osrm/in/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?api-key=ca008f94-f895-4ddd-aa51-470388b7dcb4'
     st.write (url)
     r = requests.get(url,verify=False) 
     if r.status_code!= 200:
@@ -341,7 +341,7 @@ def traveledDistance2(data):
                         count += 1                    
                         distance_temp = route['distance']
             ############# Not calculate walk points
-            else:     distance_temp = 0
+            # else:     distance_temp = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         if distance_temp> 100000:
