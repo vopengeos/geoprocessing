@@ -37,9 +37,9 @@ st.title("Distance Calculator")
 st.write('Distance Calculator for GPS Track Logs')
 start_time = '2023-01-01 00:00:00'
 start_time = '2019-01-01 00:00:00'
-end_time = '2023-12-31 00:00:00'
+end_time = '2024-12-31 00:00:00'
 MAX_ALLOWED_TIME_GAP = 300  # seconds
-MAX_ALLOWED_DISTANCE_GAP = 200  # meters
+MAX_ALLOWED_DISTANCE_GAP = 1000  # meters
 col1, col2 = st.columns(2)
 
 route_geometries = []
@@ -203,8 +203,8 @@ def osrm_route(start_lon, start_lat, end_lon, end_lat):
     #'https://routing.openstreetmap.de/routed-bike/
     # url = f'https://router.project-osrm.org/route/v1/aaaa/{start_lon},{start_lat};{end_lon},{end_lat}?alternatives=false&steps=true&overview=simplified' 
     # url = f'https://api-gw.sovereignsolutions.com/gateway/routing/india/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?alternatives=false&steps=true&overview=simplified&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
-    url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?steps=true&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
-    # url = f'https://router.project-osrm.org/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}' 
+    # url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?steps=true&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
+    url = f'https://router.project-osrm.org/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}' 
     # url= f'https://apim.vietbando.vn/gateway/osrm/in/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?api-key=ca008f94-f895-4ddd-aa51-470388b7dcb4'
     st.write (url)
     r = requests.get(url,verify=False) 
@@ -312,7 +312,7 @@ def traveledDistance2(data):
         # # if time_diff > MAX_ALLOWED_TIME_GAP or distance_temp > MAX_ALLOWED_DISTANCE_GAP:
         #     # #distance_temp = 0
         #     # st.write(data.iloc[i].datetime)     
-    
+        
         if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
             if velocity_diff > 5:   
                 st.write(data.iloc[i-1].datetime)
@@ -341,10 +341,11 @@ def traveledDistance2(data):
                         count += 1                    
                         distance_temp = route['distance']
             ############# Not calculate walk points
-            # else:     distance_temp = 0
+            else:     distance_temp = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
-        if distance_temp> 100000:
+        # if distance_temp> 100000:
+        if distance_temp> 100000 or distance_temp < 500: # if the interval of GPS signal is 5 minutes
             distance_temp = 0
         totalDistance += distance_temp   
     st.write('Number of using map matching in distance calculation: ', count, mapmatching_index,'Crow fly distance: ' , crowfly_distance, 'Map matching Distance: ', mapmatching_distance)
