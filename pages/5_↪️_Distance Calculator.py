@@ -35,11 +35,13 @@ st.sidebar.info(
 )
 st.title("Distance Calculator")
 st.write('Distance Calculator for GPS Track Logs')
-start_time = '2023-01-01 00:00:00'
-start_time = '2019-01-01 00:00:00'
-end_time = '2024-12-31 00:00:00'
+# start_time = '2023-01-01 00:00:00'
+start_time = '2024-01-07 14:00:00'
+end_time = '2024-01-07 14:17:00'
 MAX_ALLOWED_TIME_GAP = 300  # seconds
-MAX_ALLOWED_DISTANCE_GAP = 1000  # meters
+MAX_ALLOWED_DISTANCE_GAP = 500  # meters for 1 minute interval
+# MAX_ALLOWED_DISTANCE_GAP = 1000  # meters for 5 minute interval
+
 col1, col2 = st.columns(2)
 
 route_geometries = []
@@ -79,6 +81,8 @@ def statistics(trackpoints):
     totalDistance = 0
     trackpoints['datetime'] = pd.to_datetime(trackpoints['datetime']).dt.tz_localize(None)
     trackpoints = trackpoints.sort_values('datetime').reset_index().drop('index', axis=1)
+    # mask = (trackpoints['datetime'] > start_time) & (trackpoints['datetime'] <= end_time) 
+    # trackpoints = trackpoints.loc[mask]
     for i in range (1, len(trackpoints)):
         distance_temp = geopy.distance.geodesic((trackpoints.iloc[i-1].latitude, trackpoints.iloc[i-1].longitude), (trackpoints.iloc[i].latitude, trackpoints.iloc[i].longitude)).m
         totalDistance += distance_temp      
@@ -175,6 +179,7 @@ def preProcessing(data, start_time, end_time, formular):
     if formular == 'old': 
         mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
     filtered = filtered.loc[mask]
+    
     st.write('After filter Motion Activity: ', len(filtered))    
 
     # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
@@ -345,7 +350,8 @@ def traveledDistance2(data):
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         # if distance_temp> 100000:
-        if distance_temp> 100000 or distance_temp < 500: # if the interval of GPS signal is 5 minutes
+        if distance_temp> 100000 or distance_temp < 84: # if the interval of GPS signal is 1 minutes
+        # if distance_temp> 100000 or distance_temp < 420 : # if the interval of GPS signal is 5 minutes
             distance_temp = 0
         totalDistance += distance_temp   
     st.write('Number of using map matching in distance calculation: ', count, mapmatching_index,'Crow fly distance: ' , crowfly_distance, 'Map matching Distance: ', mapmatching_distance)
