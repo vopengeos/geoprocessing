@@ -15,7 +15,7 @@ A Streamlit Geoprocessing App inspired by [streamlit-geospatial](https://github.
 
 - Docker installed on your machine.
 
-## Getting Started
+## How to install
 
 1. **Clone the Repository:**
     ```bash
