@@ -25,7 +25,7 @@ st.image("./data/images/flight_routes.png")
 
 st.markdown(
     """
-    GeoProcessing Streamlit is inspired by [streamlit-geospatial](https://github.com/giswqs/streamlit-geospatial).
+    Geoprocessing Streamlit is inspired by [streamlit-geospatial](https://github.com/giswqs/streamlit-geospatial).
     """
 )
 # from streamlit_extras.buy_me_a_coffee import button
