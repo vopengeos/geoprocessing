@@ -9,11 +9,33 @@ A Streamlit Geoprocessing App inspired by [streamlit-geospatial](https://github.
 - Source code: <https://github.com/thangqd/geoprocessing>
 ![flightroute](https://github.com/thangqd/becagis_streamlit/assets/1776420/7a1c0de3-c8a5-4e45-a42f-54b0ec77806b)
 
-## Docker installation
+
+# Run Geoprocessing from Docker Hub
 
 ## Prerequisites
 
 - Docker installed on your machine.
+
+## How to run
+1. **Pull Geoprocessing from Docker Hub:**
+	```bash
+	docker pull thangqd/geoprocessing
+	```
+
+2. **Run the Docker Container:**
+    ```bash
+    docker run -p 8501:8501 thangqd/geoprocessing
+	```
+3. **Access Geoprocessing powered by Stramlit:**
+
+Open your web browser and go to http://localhost:8501.
+
+
+# Build and run Docker image from source  
+
+## Prerequisites
+
+- Git and Docker installed on your machine.
 
 ## How to install
 
@@ -39,4 +61,4 @@ A Streamlit Geoprocessing App inspired by [streamlit-geospatial](https://github.
 Open your web browser and go to http://localhost:8501.
 
 ## Support
-Feel free to access https://github.com/thangqd/geoprocessing/issues for any inquiries or issues
+Feel free to access https://github.com/thangqd/geoprocessing/issues to report any inquiries or issues
