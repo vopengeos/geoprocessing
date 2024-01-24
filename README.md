@@ -10,13 +10,13 @@ A Streamlit Geoprocessing App inspired by [streamlit-geospatial](https://github.
 ![flightroute](https://github.com/thangqd/becagis_streamlit/assets/1776420/7a1c0de3-c8a5-4e45-a42f-54b0ec77806b)
 
 
-# Run Geoprocessing from Docker Hub
+# Run Geoprocessing from popular Container Registries
 
 ## Prerequisites
 
 - Docker installed on your machine.
 
-## How to run Geoprocessing from popular Container Registries
+## How to run Geoprocessing from Docker Hub
 1. **Pull Geoprocessing from Docker Hub:**
 	```bash
 	docker pull thangqd/geoprocessing
