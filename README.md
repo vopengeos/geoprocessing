@@ -16,11 +16,11 @@ A Streamlit Geoprocessing App inspired by [streamlit-geospatial](https://github.
 
 - Docker installed on your machine.
 
-## How to run
+## How to run Geoprocessing from popular Container Registries
 1. **Pull Geoprocessing from Docker Hub:**
 	```bash
 	docker pull thangqd/geoprocessing
-	```
+	```	
 
 2. **Run the Docker Container:**
     ```bash
@@ -29,6 +29,22 @@ A Streamlit Geoprocessing App inspired by [streamlit-geospatial](https://github.
 3. **Access Geoprocessing powered by Stramlit:**
 
 Open your web browser and go to http://localhost:8501.
+
+
+## How to run Geoprocessing from GitHub Container Registry
+1. **Pull Geoprocessing from GitHub Container Registry:**
+	```bash
+	docker pull ghcr.io/thangqd/geoprocessing
+	```	
+
+2. **Run the Docker Container:**
+    ```bash
+    docker run -p 8501:8501 ghcr.io/thangqd/geoprocessing
+	```
+3. **Access Geoprocessing powered by Stramlit:**
+
+Open your web browser and go to http://localhost:8501.
+
 
 
 # Build and run Docker image from source  
