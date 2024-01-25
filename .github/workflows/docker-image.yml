@@ -23,5 +23,5 @@ jobs:
         run: |
           docker login --username ${{ github.actor }} --password ${{ secrets.CR_PAT }} ghcr.io
           docker-compose build
-          docker tag geoprocessing_web ghcr.io/thangqd/geoprocessing:latest
+          docker tag geoprocessing-web ghcr.io/thangqd/geoprocessing:latest
           docker push ghcr.io/thangqd/geoprocessing:latest
