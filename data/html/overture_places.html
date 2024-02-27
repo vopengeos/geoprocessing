@@ -1,0 +1,196 @@
+<html>
+    <head>
+        <title>Overture Places</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.css" crossorigin="anonymous">
+        <script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+        <script src="https://unpkg.com/pmtiles@2.10.0-beta.0/dist/index.js"></script>
+        <script src="https://unpkg.com/protomaps-themes-base@2.0.0-alpha.5/dist/index.js"></script>
+        <style>
+            body {
+                margin: 0;
+            }
+            #map {
+                height:100%; width:100%;
+            }
+            #scroller {
+                z-index:999999;
+                position:absolute;
+                top:0px;
+                right:0px;
+                color:white;
+                padding:.5rem;
+                background-color:#444;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <div id="scroller">
+            <select id="releases">
+              <option value="2023-10-19-alpha.0">2023-10-19-alpha.0</option>
+              <option value="2023-07-26-alpha.0">2023-07-26-alpha.0</option>
+            </select>
+            Filter by confidence >= <span id="confidence">0.0</span>
+            <input type="range" min="0" max="100" step="1" value="0" onInput="rangeChanged(this.value)"></input>
+        </div>
+        <script type="text/javascript">
+            let protocol = new pmtiles.Protocol();
+            maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.js');
+            maplibregl.addProtocol("pmtiles",protocol.tile);
+
+            function throttle (callback, limit) {
+                var waiting = false;                      // Initially, we're not waiting
+                return function () {                      // We return a throttled function
+                    if (!waiting) {                       // If we're not waiting
+                        callback.apply(this, arguments);  // Execute users function
+                        waiting = true;                   // Prevent future invocations
+                        setTimeout(function () {          // After a period of time
+                            waiting = false;              // And allow future invocations
+                        }, limit);
+                    }
+                }
+            }
+
+            const map = new maplibregl.Map({
+                hash: true,
+                container: 'map',
+                style: {
+                    version:8,
+                    glyphs:'https://cdn.protomaps.com/fonts/pbf/{fontstack}/{range}.pbf',
+                    sources: {
+                        "overture-pois": {
+                            type: "vector",
+                            url: "pmtiles://https://r2-public.protomaps.com/overture-tiles/2023-10-19-alpha.0/places.pmtiles",
+                            attribution: '© <a href="https://overturemaps.org">Overture Maps Foundation</a>'
+                        },
+                        "protomaps": {
+                            type: "vector",
+                            url: "https://api.protomaps.com/tiles/v3.json?key=1003762824b9687f",
+                            attribution: 'Basemap © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+                            maxzoom: 14
+                        }
+                    },
+                    layers: [...protomaps_themes_base.noLabels("protomaps","black"),
+                    {
+                        'id':'overture-pois',
+                        'type':'circle',
+                        'source':'overture-pois',
+                        'source-layer':'pois',
+                        'filter':[">=",["get","confidence"], 0.0],
+                        'paint': {
+                            'circle-color':
+                                ['case',
+                                    ['==',['get','category_main'],'beauty_salon'],'#fb9a99',
+                                    ['==',['get','category_main'],'hotel'],'#33a02c',
+                                    ['==',['get','category_main'],'landmark_and_historical_building'],'#a6cee3',
+                                    ['==',['get','category_main'],'professional_services'],'#fdbf6f',
+                                    ['==',['get','category_main'],'shopping'],'#e31a1c',
+                                    ['==',['get','category_main'],'restaurant'],'#1f78b4',
+                                    ['==',['get','category_main'],'school'],'#ff7f00',
+                                    ['==',['get','category_main'],'accommodation'],'#b2df8a',
+                                    '#cab2d6'
+                                ],
+                            'circle-radius': [
+                                'interpolate',
+                                ['exponential',2],
+                                ['zoom'],
+                                0, 1, 
+                                19, 8 
+                            ],
+                            'circle-stroke-width': [
+                                'interpolate',
+                                ['exponential',2],
+                                ['zoom'],
+                                12, 0, 
+                                14, 2
+                            ],
+                            'circle-stroke-color':'black'
+                        }
+                    },
+                    {
+                        'id':'overture-pois-text',
+                        'type':'symbol',
+                        'source':'overture-pois',
+                        'source-layer':'pois',
+                        'filter':[">",["get","confidence"], 0.0],
+                        'minzoom':14,
+                        'layout': {
+                            'text-field':"{name}",
+                            'text-font':["Barlow Regular"],
+                            'text-size': [
+                                'interpolate',
+                                ['exponential',2],
+                                ['zoom'],
+                                13, 11, 
+                                16, 14 
+                            ],
+                            'text-offset':[0,1.2]
+                        },
+                        'paint': {
+                            'text-color':
+                                ['case',
+                                    ['==',['get','category_main'],'beauty_salon'],'#fb9a99',
+                                    ['==',['get','category_main'],'hotel'],'#33a02c',
+                                    ['==',['get','category_main'],'landmark_and_historical_building'],'#a6cee3',
+                                    ['==',['get','category_main'],'professional_services'],'#fdbf6f',
+                                    ['==',['get','category_main'],'shopping'],'#e31a1c',
+                                    ['==',['get','category_main'],'restaurant'],'#1f78b4',
+                                    ['==',['get','category_main'],'school'],'#ff7f00',
+                                    ['==',['get','category_main'],'accommodation'],'#b2df8a',
+                                    '#cab2d6'
+                                ],
+                            'text-halo-width':2,
+                            'text-halo-color':'black'
+                        }
+                    }, ...protomaps_themes_base.labels("protomaps","black")
+                    ]
+                }
+            });
+
+            function rangeChangedUnthrottled(target) {
+                map.setFilter("overture-pois", [">=",["get","confidence"], target / 100.0]);
+                map.setFilter("overture-pois-text", [">=",["get","confidence"], target / 100.0]);
+                document.getElementById("confidence").innerText = target / 100.0;
+            }
+
+            let rangeChanged = throttle(rangeChangedUnthrottled, 16);
+
+            const popup = new maplibregl.Popup({
+              closeButton: true,
+              closeOnClick: false,
+              maxWidth: "none",
+            });
+
+            map.on('click', 'overture-pois-text', (e) => {
+                if (e.features.length > 0) {
+                    const feature = e.features[0];
+                    popup.setHTML(
+                        `
+                        <table style="font-size:12px">
+                            <tr>
+                                <td>name:</td>
+                                <td>${feature.properties.name}</td>
+                            </tr>
+                            <tr>
+                                <td>confidence:</td>
+                                <td>${feature.properties['confidence']}</td>
+                            </tr>
+                            <tr>
+                                <td>category_main:</td>
+                                <td>${feature.properties.category_main}</td>
+                            </tr>
+                        </table>
+                        `);
+                    popup.setLngLat(e.lngLat);
+                    popup.addTo(map);
+                }
+            });
+
+            document.getElementById('releases').addEventListener('change', function(e) {
+                console.log(map.getSource("overture-pois").setUrl(`pmtiles://https://r2-public.protomaps.com/overture-tiles/${e.target.value}/places.pmtiles`));
+            });
+        </script>
+    </body>
+</html>
