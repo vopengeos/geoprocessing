@@ -19,6 +19,9 @@ import geopandas as gpd
 import numpy as np
 from math import radians, cos, acos, sin, asin, sqrt
 import requests, polyline
+from keplergl import KeplerGl
+from streamlit_keplergl import keplergl_static
+
 st.set_page_config(layout="wide")
 st.sidebar.info(
     """
@@ -36,8 +39,8 @@ st.sidebar.info(
 st.title("Distance Calculator")
 st.write('Distance Calculator for GPS Track Logs')
 # start_time = '2023-01-01 00:00:00'
-start_time = '2024-01-07 14:00:00'
-end_time = '2024-01-07 14:17:00'
+start_time = '2023-01-01 00:00:00'
+end_time = '2025-12-30 00:00:00'
 MAX_ALLOWED_TIME_GAP = 300  # seconds
 MAX_ALLOWED_DISTANCE_GAP = 500  # meters for 1 minute interval
 # MAX_ALLOWED_DISTANCE_GAP = 1000  # meters for 5 minute interval
@@ -385,6 +388,11 @@ with col1:
         if uploaded_file:        
             df = pd.read_csv(uploaded_file,encoding = "UTF-8")
             layer_name = os.path.splitext(uploaded_file.name)[0]
+        
+        # # display timeseries data
+        # my_map = KeplerGl(data={"Track": df}, height=600)
+        # keplergl_static(my_map, center_map=True)
+
         m = folium.Map(max_zoom = 21,
                     tiles='cartodbpositron',
                     zoom_start=14,
