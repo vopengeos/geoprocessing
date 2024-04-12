@@ -1,5 +1,5 @@
 pandas
-geopandas==0.14.0
+geopandas
 keplergl
 streamlit
 folium
@@ -10,7 +10,7 @@ gpxpy
 pyproj
 osmnx
 what3words
-shapely==2.0.1
+shapely
 scikit-learn
 routingpy
 geopy
