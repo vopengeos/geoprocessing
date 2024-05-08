@@ -22,6 +22,6 @@ jobs:
 
       - name: Build and push docker image
         run: |
-          docker login ghcr.io --username ${{github.actor}} --password-stdin
+          docker login --username ${{ github.actor }} --password ${{ secrets.CR_PAT }} ghcr.io
           docker tag geoprocessing_web ghcr.io/thangqd/geoprocessing:latest
           docker push ghcr.io/thangqd/geoprocessing:latest
