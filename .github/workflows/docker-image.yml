@@ -17,7 +17,6 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can
       # access it
-      # docker login --username ${{ github.actor }} --password ${{ secrets.CR_PAT }} ghcr.io
       - uses: actions/checkout@v3
 
       - name: Build and push docker image
