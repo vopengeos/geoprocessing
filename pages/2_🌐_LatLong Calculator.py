@@ -17,19 +17,19 @@ import geopandas as gpd
 
 
 st.set_page_config(layout="wide")
-st.sidebar.info(
-    """
-    - Web: [Geoprocessing Streamlit](https://geoprocessing.streamlit.app)
-    - GitHub: [Geoprocessing Streamlit](https://github.com/thangqd/geoprocessing) 
-    """
-)
+# st.sidebar.info(
+#     """
+#     - Web: [Geoprocessing Streamlit](https://geoprocessing.streamlit.app)
+#     - GitHub: [Geoprocessing Streamlit](https://github.com/thangqd/geoprocessing) 
+#     """
+# )
 
-st.sidebar.title("Contact")
-st.sidebar.info(
-    """
-    Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
-    """
-)
+# st.sidebar.title("Contact")
+# st.sidebar.info(
+#     """
+#     Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
+#     """
+# )
 
 st.title("LatLong Calculator")
 st.write('LatLong Calculator is inspired by [Lat Lon Tools](https://plugins.qgis.org/plugins/latlontools/) ')

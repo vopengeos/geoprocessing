@@ -14,19 +14,19 @@ import streamlit_ext as ste
 import geopandas as gdp
 
 st.set_page_config(layout="wide")
-st.sidebar.info(
-    """
-    - Web: [Geoprocessing Streamlit](https://geoprocessing.streamlit.app)
-    - GitHub: [Geoprocessing Streamlit](https://github.com/thangqd/geoprocessing) 
-    """
-)
+# st.sidebar.info(
+#     """
+#     - Web: [Geoprocessing Streamlit](https://geoprocessing.streamlit.app)
+#     - GitHub: [Geoprocessing Streamlit](https://github.com/thangqd/geoprocessing) 
+#     """
+# )
 
-st.sidebar.title("Contact")
-st.sidebar.info(
-    """
-    Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
-    """
-)
+# st.sidebar.title("Contact")
+# st.sidebar.info(
+#     """
+#     Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
+#     """
+# )
 st.title("Routing Engines")
 st.write('Popular routing engines with routingpy')
 routers = {
