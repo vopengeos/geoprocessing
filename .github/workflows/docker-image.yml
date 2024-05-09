@@ -18,11 +18,22 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can
       # access it
       # docker login --username ${{ github.actor }} --password ${{ secrets.CR_PAT }} ghcr.io
+      # - name: Build and push docker image
+      # run: |
+      #   echo $CR_PAT | docker login ghcr.io -u thangqd --password-stdin
+      #   docker tag geoprocessing_web ghcr.io/thangqd/geoprocessing:latest
+      #   docker push ghcr.io/thangqd/geoprocessing:latest
 
       - uses: actions/checkout@v3
 
-      - name: Build and push docker image
+      - name: 'Login to GitHub Container Registry'
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+
+      - name: 'Build and push docker image'
         run: |
-          echo $CR_PAT | docker login ghcr.io -u thangqd --password-stdin
-          docker tag geoprocessing_web ghcr.io/thangqd/geoprocessing:latest
+          docker build . --tag ghcr.io/thangqd/geoprocessing:latest
           docker push ghcr.io/thangqd/geoprocessing:latest
