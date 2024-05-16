@@ -12,7 +12,8 @@ from routingpy import OSRM
 import geopandas as gdp
 from shapely.geometry import Point, LineString
 from shapely import reverse
-from folium.plugins import Fullscreen
+from folium.plugins import Fullscreen, MeasureControl
+
 import streamlit_ext as ste
 import geopandas as gpd
 # from pykalman import KalmanFilter
@@ -23,33 +24,21 @@ from keplergl import KeplerGl
 from streamlit_keplergl import keplergl_static
 
 st.set_page_config(layout="wide")
-# st.sidebar.info(
-#     """
-#     - Web: [Geoprocessing Streamlit](https://geoprocessing.streamlit.app)
-#     - GitHub: [Geoprocessing Streamlit](https://github.com/thangqd/geoprocessing) 
-#     """
-# )
-
-# st.sidebar.title("Contact")
-# st.sidebar.info(
-#     """
-#     Thang Quach: [My Homepage](https://thangqd.github.io) | [GitHub](https://github.com/thangqd) | [LinkedIn](https://www.linkedin.com/in/thangqd)
-#     """
-# )
 st.title("Distance Calculator")
 st.write('Distance Calculator for GPS Track Logs')
 # start_time = '2023-01-01 00:00:00'
 start_time = '2023-01-01 00:00:00'
 end_time = '2025-12-30 00:00:00'
+######## MAX_ALLOWED_TIME_GAP & MAX_ALLOWED_DISTANCE_GAP for 1 minute interval of trackpoints 
 MAX_ALLOWED_TIME_GAP = 300  # seconds
-MAX_ALLOWED_DISTANCE_GAP = 500  # meters for 1 minute interval
-# MAX_ALLOWED_DISTANCE_GAP = 1000  # meters for 5 minute interval
+# MAX_ALLOWED_DISTANCE_GAP = 1165  # meters for 1 minute interval , around 70km/h
+MAX_ALLOWED_DISTANCE_GAP = 1666  # meters for 1 minute interval , around 100km/h
 
 col1, col2 = st.columns(2)
 
 route_geometries = []
 shortestpath_dict = {"time": [], "distance": [], "duration": [], "speed": []}
-mapmatching_dict = {"time": [], "distance": []}
+routing_dict = {"time": [], "distance": []}
 
 
 def style_function(feature):
@@ -82,9 +71,9 @@ def highlight_function(feature):
 
 def statistics(trackpoints):
     totalDistance = 0
-    trackpoints['datetime'] = pd.to_datetime(trackpoints['datetime']).dt.tz_localize(None)
-    trackpoints = trackpoints.sort_values('datetime').reset_index().drop('index', axis=1)
-    # mask = (trackpoints['datetime'] > start_time) & (trackpoints['datetime'] <= end_time) 
+    trackpoints['time'] = pd.to_datetime(trackpoints['time']).dt.tz_localize(None)
+    trackpoints = trackpoints.sort_values('time').reset_index().drop('index', axis=1)
+    # mask = (trackpoints['time'] > start_time) & (trackpoints['time'] <= end_time) 
     # trackpoints = trackpoints.loc[mask]
     for i in range (1, len(trackpoints)):
         distance_temp = geopy.distance.geodesic((trackpoints.iloc[i-1].latitude, trackpoints.iloc[i-1].longitude), (trackpoints.iloc[i].latitude, trackpoints.iloc[i].longitude)).m
@@ -92,54 +81,42 @@ def statistics(trackpoints):
     
     totalDistance =  round(totalDistance/1000, 3)
     st.write ('Total distance without any filters: ', totalDistance, ' km')
-    totalTime =  (datetime.strptime(str(trackpoints.iloc[-1].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(trackpoints.iloc[0].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()/60
+    totalTime =  (datetime.strptime(str(trackpoints.iloc[-1].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(trackpoints.iloc[0].time), '%Y-%m-%d %H:%M:%S')).total_seconds()/60
     st.write ('Total time: ', round(totalTime,2), ' minutes')
     if totalTime > 0 :
         st.write ('Average Speed: ', round(totalDistance/(totalTime/60),2), (' km/h'))
     
     st.write('Number of track points: ', len(trackpoints))  
     st.write('Sessions: ', trackpoints['session'].unique()) 
-    trackpoints['date_string'] = pd.to_datetime(trackpoints['datetime']).dt.date.astype(str)
-    st.write('Date: ', trackpoints['date_string'].unique() )
+    trackpoints['time_string'] = pd.to_datetime(trackpoints['time']).dt.date.astype(str)
+    st.write('Date: ', trackpoints['time_string'].unique() )
 
-    st.write ('Number of duplicate datetime: ', trackpoints.duplicated(subset=["datetime"], keep='last').sum())
+    st.write ('Number of duplicate time: ', trackpoints.duplicated(subset=["time"], keep='last').sum())
     st.write ('Number of duplicate lat and long: ', trackpoints.duplicated(subset=["latitude", "longitude"], keep='last').sum())
-    st.write ('Number of duplicate datetime, lat and long: ', trackpoints.duplicated(subset=["datetime", "latitude", "longitude"], keep='last').sum())
-    st.write ('Start time:', trackpoints.iloc[0].datetime)
-    st.write ('End time:', trackpoints.iloc[-1].datetime)
+    st.write ('Number of duplicate time, lat and long: ', trackpoints.duplicated(subset=["time", "latitude", "longitude"], keep='last').sum())
+    st.write ('Start time:', trackpoints.iloc[0].time)
+    st.write ('End time:', trackpoints.iloc[-1].time)
 
     st.write(trackpoints)
     st.write('Activity types: ', trackpoints['motionActivity'].unique()) 
 
 
-# def smooth(points):
-#     kf = KalmanFilter(
-#         initial_state_mean = points.iloc[0],
-#         observation_covariance = np.diag([0.5, 0.5]) ** 2, # TODO: shouldn't be zero
-#         transition_covariance = np.diag([0.3, 0.3]) ** 2, # TODO: shouldn't be zero
-#         transition_matrices = [[1, 0], [0, 1]] # TODO
-#     )
-#     kalman_smoothed, _ = kf.smooth(points)
-#     df = pd.DataFrame(data=kalman_smoothed, columns=['latitude', 'longitude'])
-#     st.write(df)
-#     return df
-
 def removejumping(data): 
     filtered = data
     outliers_index = []
     for i in range (1, len(filtered)-1):  #except final jumping point! Ex: WayPoint_20230928142338.csv        
-        time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
         distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
-            # st.write(data.iloc[i-1].datetime, data.iloc[i].datetime,velocity,' km/h') 
-            if velocity >70 : #km/h,
+            # st.write(data.iloc[i-1].time, data.iloc[i].time,velocity,' km/h') 
+            if velocity >100 : #km/h,
                 # filtered = filtered.drop([i])
-                st.write('Current Point: ',  data.iloc[i-1].datetime,  data.iloc[i-1]['session'], ' Jumping Point: ', data.iloc[i].datetime, data.iloc[i]['session'], ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
-                outliers_index.append(data.iloc[i].datetime)            
+                st.write('Current Point: ',  data.iloc[i-1].time,  data.iloc[i-1]['session'], ' Jumping Point: ', data.iloc[i].time, data.iloc[i]['session'], ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
+                outliers_index.append(data.iloc[i].time)            
     # st.write(outliers_index)
-    filtered = filtered[filtered.datetime.isin(outliers_index) == False]   
+    filtered = filtered[filtered.time.isin(outliers_index) == False]   
     st.write ('After remove jumping point:', len(filtered)) 
     return filtered
 
@@ -148,21 +125,21 @@ def removejumping_formap(data):
     filtered = data
     outliers_index = []
     for i in range (1, len(filtered)-1):  #except final jumping point! Ex: WayPoint_20230928142338.csv        
-        time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
         distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
-            if velocity >70 : #km/h,
-                outliers_index.append(data.iloc[i].datetime)            
-    filtered = filtered[filtered.datetime.isin(outliers_index) == False]   
+            if velocity >100 : #km/h,
+                outliers_index.append(data.iloc[i].time)            
+    filtered = filtered[filtered.time.isin(outliers_index) == False]   
     return filtered
 
 
 def preProcessing(data, start_time, end_time, formular):
     filtered = data
-    filtered['datetime'] = pd.to_datetime(filtered['datetime'])
-    filtered = filtered.sort_values('datetime').reset_index().drop('index', axis=1)
+    filtered['time'] = pd.to_datetime(filtered['time'])
+    filtered = filtered.sort_values('time').reset_index().drop('index', axis=1)
     st.write('Number of original track points: ', len(filtered))   
 
     timestamp_format = "%Y-%m-%d %H:%M:%S"
@@ -171,47 +148,67 @@ def preProcessing(data, start_time, end_time, formular):
     
     
     ##############MotionActivity filter:  may delete "moving" track points
-    mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    # mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    mask = (filtered['time'] > start) & (filtered['time'] <= end)
 
     if formular == 'old': 
-        mask = (filtered['datetime'] > start) & (filtered['datetime'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
+        mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
     filtered = filtered.loc[mask]
     
     st.write('After filter Motion Activity: ', len(filtered))    
 
-    # filtered['datetime'] = pd.to_datetime(filtered['datetime'])
-    filtered['datetime'] = pd.to_datetime(filtered['datetime']).dt.tz_localize(None)
+    # filtered['time'] = pd.to_datetime(filtered['time'])
+    filtered['time'] = pd.to_datetime(filtered['time']).dt.tz_localize(None)
 
     ############## Drop duplicate track points (the same latitude and longitude, and datetime)  
-    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude", "datetime"], keep='last') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude", "time"], keep='last') # except last point in case of return to sart point with the same lat long
 
     st.write('After delete duplicates: ', len(filtered))    
 
-    filtered['date_string'] = pd.to_datetime(filtered['datetime']).dt.date    
+    filtered['time_string'] = pd.to_datetime(filtered['time']).dt.date    
     st.write(filtered)
     return filtered    
 
 def osrm_route(start_lon, start_lat, end_lon, end_lat):       
     # url= f'https://routing.openstreetmap.de/routed-bike/'
-    # url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?radiuses=100%3B100&steps=true&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
-    url= f'https://api-gw.sovereignsolutions.com/gateway/routing/in/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
+    url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?radiuses=20%3B20&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
+    # url= f'https://api-gw.sovereignsolutions.com/gateway/routing/in/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
+    # url = f'https://routing.openstreetmap.de/routed-car/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?continue_straight=true'
     st.write (url)
     r = requests.get(url,verify=False) 
-    if r.status_code!= 200:
-        return None
-    res = r.json()  
-    # routes = polyline.decode(res['matchings'][0]['geometry'])
-    routes = polyline.decode(res['routes'][0]['geometry'])
-    
-    ##############
-    # distance = res['routes'][0]['distance']
-    # distance = res['matchings'][0]['distance']
-    distance = res['routes'][0]['distance']
-    # print('OSRM distance:', distance)
-    osrmroute = {'geometry':routes,      
-           'distance':distance           
-          }
-    return osrmroute
+    if r.status_code == 200:        
+        res = r.json()  
+        # routes = polyline.decode(res['matchings'][0]['geometry'])
+        routes = polyline.decode(res['matchings'][0]['geometry'])
+        
+        ##############
+        # distance = res['routes'][0]['distance']
+        # distance = res['matchings'][0]['distance']
+        distance = res['matchings'][0]['distance']
+        # print('OSRM distance:', distance)
+        osrmroute = {'geometry':routes,      
+            'distance':distance           
+            }
+        return osrmroute
+    else:
+        url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
+        st.write (url)
+        r = requests.get(url,verify=False) 
+        if r.status_code == 200:        
+            res = r.json()  
+            # routes = polyline.decode(res['matchings'][0]['geometry'])
+            routes = polyline.decode(res['routes'][0]['geometry'])            
+            ##############
+            # distance = res['routes'][0]['distance']
+            # distance = res['matchings'][0]['distance']
+            distance = res['routes'][0]['distance']
+            # print('OSRM distance:', distance)
+            osrmroute = {'geometry':routes,      
+                'distance':distance           
+                }
+            return osrmroute
+        else:
+            return None
 
 
 def reverse_lat_long_linestring(linestring):
@@ -228,41 +225,41 @@ def traveledDistance(data):
     crowfly_distance = []
     for i in range (1, len(data)):
         velocity_diff = 0
-        time_diff = (datetime.strptime(str(data.iloc[i].datetime), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].datetime), '%Y-%m-%d %H:%M:%S')).total_seconds()
+        time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         # distance_temp = haversine((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         if time_diff>0:
             velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
        
-        if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+        if velocity_diff > 100 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
             if velocity_diff > 5:   
-                st.write(data.iloc[i-1].datetime)
-                st.write(data.iloc[i].datetime)
+                st.write(data.iloc[i-1].time)
+                st.write(data.iloc[i].time)
                 st.write('velocity: ',  velocity_diff)
                 st.write('time_diff: ', time_diff)
                 st.write('distance_temp:', distance_temp)            
                 route = osrm_route(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude)
                 # print('distance_temp:', distance_temp)
                 if route is not None:
-                    mapmatching_dict["time"].append(data.iloc[i - 1].datetime)
-                    mapmatching_dict["distance"].append(route['distance'])
+                    routing_dict["time"].append(data.iloc[i - 1].time)
+                    routing_dict["distance"].append(route['distance'])
                     # # dict_["duration"].append(route['duration'])
                     # if (route['duration'] > 0):
                     #     dict_["speed"].append((route['distance']/1000)/(route['duration']/3600)) # km/h
                     # else: dict_["speed"].append(0)
                     crowfly_distance.append(round(distance_temp,2))
 
-                    if route['distance'] > 0:
+                    if route['distance'] <= 2.5*distance_temp:
                         # print('route distance:',route['distance'])
                         routing_distance.append(round(route['distance'],2))
-                        routing_index.append(data.iloc[i-1].datetime)  
-                        routing_index.append(data.iloc[i].datetime)                     
+                        routing_index.append(data.iloc[i-1].time)  
+                        routing_index.append(data.iloc[i].time)                     
                         route_geometries.append(LineString(route['geometry'])) 
                         st.write('routing_geometries: ', route_geometries)
                         count += 1                    
                         distance_temp = route['distance']
-            ############# Not calculate walk points
+            ############# Not calculate walk points             
             else:     distance_temp = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
@@ -318,6 +315,12 @@ with col1:
                 title_cancel            = "Close full-screen map",                      
                 force_separate_button   = True,                                         
             ).add_to(m)
+        draw = Draw(position='topright',
+                    draw_options={'polyline':True,'polygon':False,'rectangle':False,
+                                    'circle':False,'marker':False,'circlemarker':False})
+
+        m.add_child(draw)
+
         
         colors = [ 'green','blue', 'orange', 'red',
                   'lightblue', 'cadetblue', 'darkblue', 
@@ -361,10 +364,10 @@ if submitted:
         st.write('Step 1/2: Preprocessing')
         # df = smooth(df)
         df = preProcessing(df, start_time, end_time, 'new')   
-        df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        df['date_string'] = df['date_string'].astype(str)
+        df['time'] = df['time'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        df['time_string'] = df['time_string'].astype(str)
         st.write('Step 2/2: Distance Calculation')
-        groupBy = ['driver', 'date_string', 'session']
+        groupBy = ['driver', 'time_string', 'session']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
         df_removejumping = removejumping_formap(df)
@@ -378,7 +381,7 @@ if submitted:
         # download_geojson(geo_df_cleaned, 'track_points_cleaned')                
         geo_df = gdp.GeoDataFrame(df_removejumping, geometry=geometry)
         # aggregate these points with the GrouBy
-        geo_df = geo_df.groupby(['driver', 'date_string'])['geometry'].apply(lambda x: LineString(x.tolist()))
+        geo_df = geo_df.groupby(['driver', 'time_string'])['geometry'].apply(lambda x: LineString(x.tolist()))
         track_distance = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
 
         center = track_distance.dissolve().centroid
@@ -395,6 +398,12 @@ if submitted:
                 title_cancel            = "Close full-screen map",                      
                 force_separate_button   = True,                                         
             ).add_to(m)
+
+        draw = Draw(position='topright',
+                    draw_options={'polyline':True,'polygon':False,'rectangle':False,
+                                    'circle':False,'marker':False,'circlemarker':False})
+
+        m.add_child(draw)
 
         folium.GeoJson(trackpoints_cleaned, name = 'track_points_cleaned',  
                         style_function = style_function, 
@@ -419,7 +428,7 @@ if submitted:
                         ).add_to(m)
 
         routes_df = gpd.GeoDataFrame(shortestpath_dict, geometry=route_geometries, crs="EPSG:4326")
-        # routes_df = gpd.GeoDataFrame(mapmatching_dict, geometry=route_geometries, crs="EPSG:4326")
+        # routes_df = gpd.GeoDataFrame(routing_dict, geometry=route_geometries, crs="EPSG:4326")
         # routes_df['geometry'] = routes_df['geometry'].reverse()
         # st.write(routes_df)
         routes_df['geometry'] = routes_df['geometry'].apply(reverse_lat_long_linestring)
@@ -434,7 +443,8 @@ if submitted:
                         ).add_to(m)
         
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
-        folium_static(m, width = 600)
+        folium_static(m, width = 600)      
+
         download_geojson(trackpoints_cleaned, layer_name + '_cleaned')
         download_geojson(track_distance, layer_name + '_track')
-        download_geojson(routes_df, layer_name + '_mapmatching')
+        download_geojson(routes_df, layer_name + '_routing')
