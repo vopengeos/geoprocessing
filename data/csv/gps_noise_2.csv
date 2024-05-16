@@ -1,4 +1,4 @@
-"trackerId","datetime","longitude","latitude","speed","heading","driver","deviceStatus","session","motionActivity","sysId","_t","meta"
+"trackerId","time","longitude","latitude","speed","heading","driver","deviceStatus","session","motionActivity","sysId","_t","meta"
 "23A89814-3D2E-4DBC-8005-291F92364501@ramesh678",2023-09-18 21:07:08.000,106.65824896092084,10.802998922532163,0.0,0.0,ramesh678,2,1695048243,1,EOIHHN,2023-09-18 20:07:21.000,""
 "23A89814-3D2E-4DBC-8005-291F92364501@ramesh678",2023-09-18 21:07:09.000,106.66001466398315,10.802565177563583,0.0,208.1543,ramesh678,2,1695048243,1,EOIHHN,2023-09-18 20:07:21.000,""
 "23A89814-3D2E-4DBC-8005-291F92364501@ramesh678",2023-09-18 21:07:09.000,106.66002143236379,10.80256912146467,0.0,208.1543,ramesh678,2,1695048243,1,EOIHHN,2023-09-18 20:07:21.000,""

@@ -15,7 +15,7 @@ st.set_page_config(layout="wide")
 #     """
 # )
 st.title("Geoprocessing Streamlit")
-st.image("./data/images/flight_routes.png")
+st.image("https://github.com/thangqd/geoprocessing/blob/main/data/images/flight_routes.png?raw=true")
 
 st.markdown(
     """
