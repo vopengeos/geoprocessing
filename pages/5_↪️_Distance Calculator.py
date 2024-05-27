@@ -6,8 +6,6 @@ from folium.plugins import MousePosition
 import routingpy as rp
 import pandas as pd
 from datetime import datetime
-import geopy.distance
-from becalib.distance_const import *
 from routingpy import OSRM
 import geopandas as gdp
 from shapely.geometry import Point, LineString
@@ -31,8 +29,24 @@ start_time = '2023-01-01 00:00:00'
 end_time = '2025-12-30 00:00:00'
 ######## MAX_ALLOWED_TIME_GAP & MAX_ALLOWED_DISTANCE_GAP for 1 minute interval of trackpoints 
 MAX_ALLOWED_TIME_GAP = 300  # seconds
-# MAX_ALLOWED_DISTANCE_GAP = 1165  # meters for 1 minute interval , around 70km/h
-MAX_ALLOWED_DISTANCE_GAP = 1666  # meters for 1 minute interval , around 100km/h
+MAX_ALLOWED_DISTANCE_GAP = 500  # meters
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance in kilometers between two points 
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
+    dist = c * r
+    return  dist*1000 # meters
+
 
 col1, col2 = st.columns(2)
 
@@ -76,7 +90,8 @@ def statistics(trackpoints):
     # mask = (trackpoints['time'] > start_time) & (trackpoints['time'] <= end_time) 
     # trackpoints = trackpoints.loc[mask]
     for i in range (1, len(trackpoints)):
-        distance_temp = geopy.distance.geodesic((trackpoints.iloc[i-1].latitude, trackpoints.iloc[i-1].longitude), (trackpoints.iloc[i].latitude, trackpoints.iloc[i].longitude)).m
+        # distance_temp = geopy.distance.geodesic((trackpoints.iloc[i-1].latitude, trackpoints.iloc[i-1].longitude), (trackpoints.iloc[i].latitude, trackpoints.iloc[i].longitude)).m
+        distance_temp = haversine(trackpoints.iloc[i].longitude, trackpoints.iloc[i].latitude, trackpoints.iloc[i - 1].longitude, trackpoints.iloc[i - 1].latitude)
         totalDistance += distance_temp      
     
     totalDistance =  round(totalDistance/1000, 3)
@@ -106,16 +121,15 @@ def removejumping(data):
     outliers_index = []
     for i in range (1, len(filtered)-1):  #except final jumping point! Ex: WayPoint_20230928142338.csv        
         time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
-        distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
+        # distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+        distance_diff = haversine(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
             # st.write(data.iloc[i-1].time, data.iloc[i].time,velocity,' km/h') 
-            if velocity >100 : #km/h,
-                # filtered = filtered.drop([i])
-                st.write('Current Point: ',  data.iloc[i-1].time,  data.iloc[i-1]['session'], ' Jumping Point: ', data.iloc[i].time, data.iloc[i]['session'], ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
+            if velocity >70 : #km/h,
+                st.write('Current Point: ',  data.iloc[i-1].time,  data.iloc[i-1].session, ' Jumping Point: ', data.iloc[i].time, data.iloc[i].session, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
                 outliers_index.append(data.iloc[i].time)            
-    # st.write(outliers_index)
+
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
     st.write ('After remove jumping point:', len(filtered)) 
     return filtered
@@ -126,11 +140,11 @@ def removejumping_formap(data):
     outliers_index = []
     for i in range (1, len(filtered)-1):  #except final jumping point! Ex: WayPoint_20230928142338.csv        
         time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
-        distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        # distance_diff = haversine(data.iloc[i-1].latitude, data.iloc[i-1].longitude, data.iloc[i].latitude, data.iloc[i].longitude)
+        # distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+        distance_diff = haversine(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
-            if velocity >100 : #km/h,
+            if velocity >70 : #km/h,
                 outliers_index.append(data.iloc[i].time)            
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
     return filtered
@@ -149,7 +163,7 @@ def preProcessing(data, start_time, end_time, formular):
     
     ##############MotionActivity filter:  may delete "moving" track points
     # mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    mask = (filtered['time'] > start) & (filtered['time'] <= end)
+    # mask = (filtered['time'] > start) & (filtered['time'] <= end)
 
     if formular == 'old': 
         mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
@@ -161,6 +175,8 @@ def preProcessing(data, start_time, end_time, formular):
     filtered['time'] = pd.to_datetime(filtered['time']).dt.tz_localize(None)
 
     ############## Drop duplicate track points (the same latitude and longitude, and datetime)  
+    filtered = filtered.drop_duplicates(subset=["driver", "session","time"], keep='last') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
     filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude", "time"], keep='last') # except last point in case of return to sart point with the same lat long
 
     st.write('After delete duplicates: ', len(filtered))    
@@ -226,13 +242,12 @@ def traveledDistance(data):
     for i in range (1, len(data)):
         velocity_diff = 0
         time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
-        # distance_temp = greatCircle(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
-        # distance_temp = haversine((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
-        distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+        # distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
+        distance_temp = haversine(data.iloc[i-1].longitude, data.iloc[i-1].latitude, data.iloc[i].longitude, data.iloc[i].latitude)
         if time_diff>0:
             velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
        
-        if velocity_diff > 100 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
+        if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
             if velocity_diff > 5:   
                 st.write(data.iloc[i-1].time)
                 st.write(data.iloc[i].time)

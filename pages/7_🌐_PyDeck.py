@@ -93,7 +93,7 @@ with col1:
     with form:
         options = st.multiselect(
             'Types of rendering:',
-            ['HeatmapLayer', 'ScatterplotLayer', 'HexagonLayer' ]
+            ['HeatmapLayer', 'ScatterplotLayer', 'HexagonLayer', 'GridLayer' ]
             )
 
         # st.write('You selected:', options)
@@ -148,10 +148,17 @@ if submitted:
             extruded=True,
             radius = 10000,
             upperPercentile = 100,
-            coverage=1                 
+            coverage=1 ,
+            tooltip={
+        "html": "<b>Total Count:</b> {count}",
+        "style": {
+            "backgroundColor": "rgba(0, 0, 0, 0.8)",
+            "color": "white"
+        }
+        }           
         )     
       
-        hexagon_layer.tooltip = tooltip
+        # hexagon_layer.tooltip = tooltip
 
         heatmap_layer = pdk.Layer(
             'HeatmapLayer',
@@ -228,7 +235,7 @@ if submitted:
         # map_style=None,
         # layers=[scatterplot_layer,hexagon_layer]
         # layers=[scatterplot_layer],
-        layers=[scatterplot_layer],
+        layers=[hexagon_layer],
         # tooltip={"text": "Count: {count}"},
         )
 
