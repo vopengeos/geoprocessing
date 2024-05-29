@@ -206,7 +206,7 @@ def removejumping(data):
         if time_diff > 0:
             velocity_diff =  (distance_diff/1000)/(time_diff/3600) #km/h 
             # st.write(data.iloc[i-1].time, data.iloc[i].time,velocity,' km/h') 
-            if velocity_diff >70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
+            if velocity_diff >70  or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
                 st.write('Current Point: ', data.iloc[i-1].session, data.iloc[i-1].id, data.iloc[i-1].time, ' Jumping Point: ',data.iloc[i].session, data.iloc[i].id, data.iloc[i].time, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity_diff,2),' km/h')
                 outliers_index.append(data.iloc[i].time)            
             
@@ -223,7 +223,7 @@ def removejumping_formap(data):
         distance_diff = haversine(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
-            if velocity >70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
+            if velocity >70 or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
                 outliers_index.append(data.iloc[i].time)            
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
     return filtered
