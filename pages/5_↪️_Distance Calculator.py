@@ -1,5 +1,5 @@
 import folium, os
-from folium.plugins import Draw, LocateControl
+from folium.plugins import Draw, BeautifyIcon  
 import streamlit as st
 from streamlit_folium import st_folium, folium_static
 from folium.plugins import MousePosition
@@ -30,6 +30,7 @@ end_time = '2025-12-30 00:00:00'
 ######## MAX_ALLOWED_TIME_GAP & MAX_ALLOWED_DISTANCE_GAP for 1 minute interval of trackpoints 
 MAX_ALLOWED_TIME_GAP = 300  # seconds
 MAX_ALLOWED_DISTANCE_GAP = 500  # meters
+MAX_ALLOWED_DISTANCE_JUMPING = 1000  # meters
 
 def haversine(lon1, lat1, lon2, lat2):
     """
@@ -55,7 +56,7 @@ shortestpath_dict = {"time": [], "distance": [], "duration": [], "speed": []}
 routing_dict = {"time": [], "distance": []}
 
 
-def style_function(feature):
+def style_track(feature):
     return {
         'fillColor': '#b1ddf9',
         'fillOpacity': 0.5,
@@ -64,7 +65,18 @@ def style_function(feature):
         # 'dashArray': '5, 5'
     }
 
-def style_function2(feature):
+# def style_trackpoints(feature):
+#     return {
+#         'fillColor': '#b1ddf9',
+#         'fillOpacity': 0.5,
+#         'color': 'blue',
+#         'weight': 2,
+#         # 'dashArray': '5, 5'
+#     }
+
+
+
+def style_route(feature):
     return {
         'fillColor': '#b1dda3',
         'fillOpacity': 0.5,
@@ -116,24 +128,91 @@ def statistics(trackpoints):
     st.write('Activity types: ', trackpoints['motionActivity'].unique()) 
 
 
+def preProcessing(data, start_time, end_time, formular):
+    filtered = data
+    filtered['time'] = pd.to_datetime(filtered['time'])
+     
+    
+    st.write('Number of original track points: ', len(filtered))   
+    timestamp_format = "%Y-%m-%d %H:%M:%S"
+    start = datetime.strptime(start_time, timestamp_format)
+    end = datetime.strptime(end_time, timestamp_format)
+    
+    
+    ##############MotionActivity filter:  may delete "moving" track points
+    # mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
+    mask = (filtered['time'] > start) & (filtered['time'] <= end)
+
+    if formular == 'old': 
+        mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
+    filtered = filtered.loc[mask]
+    
+    st.write('After filter Motion Activity: ', len(filtered))    
+
+    ############## Drop duplicate track points (the same latitude and longitude, and datetime)  
+    # filtered = filtered.drop_duplicates(subset=["driver", "session","time"], keep='last') # except last point in case of return to sart point with the same lat long
+    # filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude", "time"], keep='last') # except last point in case of return to sart point with the same lat long
+
+    st.write('After delete duplicates: ', len(filtered))    
+    filtered['time_string'] = pd.to_datetime(filtered['time']).dt.date  
+   
+    # Initialize new columns
+    filtered['time_diff'] = np.nan
+    filtered['distance_diff'] = np.nan
+    filtered['velocity_diff'] = np.nan
+
+    # Calculate time_diff in seconds
+    filtered['time_diff'] = filtered['time'].diff().dt.total_seconds()
+
+    # Calculate distance_diff in meters using haversine function
+    # Shift latitude and longitude to get previous values
+    filtered['prev_latitude'] = filtered['latitude'].shift()
+    filtered['prev_longitude'] = filtered['longitude'].shift()
+
+    # Calculate distance_diff in meters using haversine function
+    filtered['distance_diff'] = filtered.apply(
+        lambda row: haversine(
+            row['longitude'], row['latitude'],
+            row['prev_longitude'], row['prev_latitude']
+        ) if pd.notnull(row['prev_latitude']) else 0,
+        axis=1
+    )
+    
+    # Calculate velocity in meters per second
+    filtered['velocity_diff'] = round((filtered['distance_diff']/1000) / (filtered['time_diff']/3600),2) # in km/h
+    # Round distance_diff
+    filtered['distance_diff'] =round(filtered['distance_diff'],2)
+
+    # Fill NaN values (first row) with 0 or other appropriate value
+    filtered = filtered.fillna(0)
+    filtered = filtered.drop(columns=['prev_latitude', 'prev_longitude'])
+
+    # Add an Id representing time asceding
+    filtered = filtered.sort_values('time').reset_index().drop('index', axis=1)   
+    filtered['id'] = range(0, len(filtered))
+
+    st.write(filtered)
+    return filtered    
+
 def removejumping(data): 
     filtered = data
+    st.write('Session: ', filtered['session'].unique()) 
     outliers_index = []
     for i in range (1, len(filtered)-1):  #except final jumping point! Ex: WayPoint_20230928142338.csv        
         time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_diff = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         distance_diff = haversine(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         if time_diff > 0:
-            velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
+            velocity_diff =  (distance_diff/1000)/(time_diff/3600) #km/h 
             # st.write(data.iloc[i-1].time, data.iloc[i].time,velocity,' km/h') 
-            if velocity >70 : #km/h,
-                st.write('Current Point: ',  data.iloc[i-1].time,  data.iloc[i-1].session, ' Jumping Point: ', data.iloc[i].time, data.iloc[i].session, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity,2),' km/h')
+            if velocity_diff >70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
+                st.write('Current Point: ', data.iloc[i-1].session, data.iloc[i-1].id, data.iloc[i-1].time, ' Jumping Point: ',data.iloc[i].session, data.iloc[i].id, data.iloc[i].time, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity_diff,2),' km/h')
                 outliers_index.append(data.iloc[i].time)            
-
+            
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
-    st.write ('After remove jumping point:', len(filtered)) 
+    st.write ('After remove jumping point:', len(filtered))    
     return filtered
-
 
 def removejumping_formap(data): 
     filtered = data
@@ -144,55 +223,20 @@ def removejumping_formap(data):
         distance_diff = haversine(data.iloc[i].longitude, data.iloc[i].latitude, data.iloc[i - 1].longitude, data.iloc[i - 1].latitude)
         if time_diff > 0:
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
-            if velocity >70 : #km/h,
+            if velocity >70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
                 outliers_index.append(data.iloc[i].time)            
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
     return filtered
 
-
-def preProcessing(data, start_time, end_time, formular):
-    filtered = data
-    filtered['time'] = pd.to_datetime(filtered['time'])
-    filtered = filtered.sort_values('time').reset_index().drop('index', axis=1)
-    st.write('Number of original track points: ', len(filtered))   
-
-    timestamp_format = "%Y-%m-%d %H:%M:%S"
-    start = datetime.strptime(start_time, timestamp_format)
-    end = datetime.strptime(end_time, timestamp_format)
-    
-    
-    ##############MotionActivity filter:  may delete "moving" track points
-    # mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2) | (filtered['motionActivity'] == 32) | (filtered['motionActivity'] == 64) | (filtered['motionActivity'] == 128))
-    # mask = (filtered['time'] > start) & (filtered['time'] <= end)
-
-    if formular == 'old': 
-        mask = (filtered['time'] > start) & (filtered['time'] <= end) & ((filtered['motionActivity'] == 0) | (filtered['motionActivity'] == 1) | (filtered['motionActivity'] == 2))
-    filtered = filtered.loc[mask]
-    
-    st.write('After filter Motion Activity: ', len(filtered))    
-
-    # filtered['time'] = pd.to_datetime(filtered['time'])
-    filtered['time'] = pd.to_datetime(filtered['time']).dt.tz_localize(None)
-
-    ############## Drop duplicate track points (the same latitude and longitude, and datetime)  
-    filtered = filtered.drop_duplicates(subset=["driver", "session","time"], keep='last') # except last point in case of return to sart point with the same lat long
-    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
-    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude", "time"], keep='last') # except last point in case of return to sart point with the same lat long
-
-    st.write('After delete duplicates: ', len(filtered))    
-
-    filtered['time_string'] = pd.to_datetime(filtered['time']).dt.date    
-    st.write(filtered)
-    return filtered    
 
 def osrm_route(start_lon, start_lat, end_lon, end_lat):       
     # url= f'https://routing.openstreetmap.de/routed-bike/'
     url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/match/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?radiuses=20%3B20&api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
     # url= f'https://api-gw.sovereignsolutions.com/gateway/routing/in/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
     # url = f'https://routing.openstreetmap.de/routed-car/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?continue_straight=true'
-    st.write (url)
     r = requests.get(url,verify=False) 
-    if r.status_code == 200:        
+    if r.status_code == 200:   
+        st.write (url)     
         res = r.json()  
         # routes = polyline.decode(res['matchings'][0]['geometry'])
         routes = polyline.decode(res['matchings'][0]['geometry'])
@@ -249,8 +293,8 @@ def traveledDistance(data):
        
         if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
             if velocity_diff > 5:   
-                st.write(data.iloc[i-1].time)
-                st.write(data.iloc[i].time)
+                st.write(data.iloc[i-1].id, data.iloc[i-1].time)
+                st.write(data.iloc[i].id, data.iloc[i].time)
                 st.write('velocity: ',  velocity_diff)
                 st.write('time_diff: ', time_diff)
                 st.write('distance_temp:', distance_temp)            
@@ -319,7 +363,8 @@ with col1:
         # my_map = KeplerGl(data={"Track": df}, height=600)
         # keplergl_static(my_map, center_map=True)
 
-        m = folium.Map(max_zoom = 21,
+        m = folium.Map(
+                    max_zoom = 25,
                     tiles='cartodbpositron',
                     zoom_start=14,
                     control_scale=True
@@ -349,6 +394,7 @@ with col1:
 
         for index, row in df.iterrows():
             popup = row.to_frame().to_html()
+            
             folium.Marker([row['latitude'], row['longitude']], 
                         popup=popup,
                         icon=folium.Icon(icon='car', color=colors[row.session_label], prefix='fa')
@@ -386,9 +432,17 @@ if submitted:
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
 
         df_removejumping = removejumping_formap(df)
+        df_removejumping = df
+        # df_removejumping = removejumping(df)
         geometry = [Point(xy) for xy in zip(df_removejumping.longitude, df_removejumping.latitude)]
         trackpoints_cleaned = gdp.GeoDataFrame(df_removejumping, geometry=geometry, crs = 'epsg:4326')
-        trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry')]
+        # trackpoints_cleaned = trackpoints_cleaned.sort_values(by='time')
+        # Create a new column representing the ordered field
+        # trackpoints_cleaned['id'] = range(1, len(trackpoints_cleaned) + 1)
+        
+        
+            
+        trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry') and column not in ['meta']]
 
         # aggregate these points with the GrouBy
         # folium.GeoJson(geo_df_cleaned).add_to(m)
@@ -401,7 +455,8 @@ if submitted:
 
         center = track_distance.dissolve().centroid
         center_lon, center_lat = center.x, center.y        
-        m = folium.Map(max_zoom = 21,
+        m = folium.Map( 
+                        max_zoom = 25,
                         tiles='cartodbpositron',
                         location = [center_lat, center_lon],
                         zoom_start=14,
@@ -418,29 +473,16 @@ if submitted:
                     draw_options={'polyline':True,'polygon':False,'rectangle':False,
                                     'circle':False,'marker':False,'circlemarker':False})
 
-        m.add_child(draw)
-
-        folium.GeoJson(trackpoints_cleaned, name = 'track_points_cleaned',  
-                        style_function = style_function, 
-                        highlight_function=highlight_function,
-                        marker = folium.Marker(icon=folium.Icon(
-                                    icon='ok-circle',
-                                    color = 'green',
-                                    size = 5
-                                    )),     
-                        # marker =  folium.CircleMarker(fill=True),
-                        # zoom_on_click = True,
-                        popup = folium.GeoJsonPopup(
-                        fields = trackpoints_cleaned_fields
-                        )).add_to(m)
-
+        m.add_child(draw)        
+        
         folium.GeoJson(track_distance, name = 'track_distance',  
-                        style_function = style_function, 
-                        highlight_function=highlight_function,
+                        style_function = style_track, 
+                        # highlight_function=highlight_function,
                         # popup = folium.GeoJsonPopup(
                         # fields = tracpoints_cleaned_fields
                         # )
                         ).add_to(m)
+
 
         routes_df = gpd.GeoDataFrame(shortestpath_dict, geometry=route_geometries, crs="EPSG:4326")
         # routes_df = gpd.GeoDataFrame(routing_dict, geometry=route_geometries, crs="EPSG:4326")
@@ -450,13 +492,83 @@ if submitted:
         # st.write('reverse geometry: ', routes_df)
 
         folium.GeoJson(routes_df, name = 'shortest_path',  
-                        style_function = style_function2, 
-                        highlight_function=highlight_function,
-                        # popup = folium.GeoJsonPopup(
-                        # fields = tracpoints_cleaned_fields
-                        # )
+                        style_function = style_route, 
+                        # highlight_function=highlight_function,
                         ).add_to(m)
         
+        trackpoins_cleaned_tooltip = folium.GeoJsonTooltip(
+            fields=['time'],
+            localize=True
+        )
+    
+        # folium.GeoJson(trackpoints_cleaned, name = 'trackpoints_cleaned',  
+        #                 # style_function=style_trackpoints,
+        #                 # style_function = lambda feature: style_trackpoints(feature, min_id, max_id),
+        #                 tooltip=trackpoins_cleaned_tooltip,                          
+        #                 popup = folium.GeoJsonPopup(
+        #                 fields = trackpoints_cleaned_fields
+        #                 )).add_to(m)
+
+        #### Display start and end points
+        def get_color(id, min_id, max_id):
+            if id == min_id:
+                return 'green'  # color for min ID
+            elif id == max_id:
+                return 'red'  # color for max ID
+            else:
+                return 'blue'  # default color
+        min_id = trackpoints_cleaned['id'].min()
+        max_id = trackpoints_cleaned['id'].max()
+        
+        for index, row in trackpoints_cleaned.iterrows():
+            # Create a copy of the row to avoid modifying the original DataFrame
+            row_copy = row.copy()
+            
+            # Exclude the field you want to hide (e.g., 'field_to_hide')
+            field_to_hide = 'meta'
+            if field_to_hide in row_copy:
+                row_copy.drop(field_to_hide, inplace=True)
+            
+            # Create an HTML representation of the row for the popup
+            popup = row_copy.to_frame().to_html()
+            
+            # Determine the color of the icon based on the row's id
+            color = get_color(row['id'], min_id, max_id)
+
+            tooltip = f"time: {row['time']}<br>" \
+              f"time_diff: {row['time_diff']}<br>" \
+              f"distance_diff: {row['distance_diff']}<br>" \
+              f"velocity_diff: {row['velocity_diff']}"
+
+
+            folium.Marker([row['latitude'], row['longitude']], 
+                        popup=popup,
+                        tooltip=tooltip , 
+                        icon=folium.Icon(icon='car', color=color, prefix='fa')
+                        # icon=folium.Icon(icon='car', prefix='fa')
+                        ).add_to(m)      
+            
+        #### Display ID
+        for idx, row in trackpoints_cleaned.iterrows():
+            # tooltip=trackpoins_cleaned_tooltip,
+            # popup = folium.GeoJsonPopup(
+            #         fields = trackpoints_cleaned_fields
+            #         )    
+            coordinates = [row.latitude, row.longitude] 
+            id_value = row['id']
+            folium.Marker(
+                location=coordinates,               
+                icon=BeautifyIcon(
+                                # icon="arrow-down", icon_shape="marker",
+                                popup=popup,
+                                number=id_value,
+                                border_color= '#91cf60',
+                                border_width =0.5,
+                                text_color= "#000000"
+                            )                
+            ).add_to(m)
+
+
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
         folium_static(m, width = 600)      
 
