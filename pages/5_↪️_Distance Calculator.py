@@ -192,7 +192,7 @@ def preProcessing(data, start_time, end_time, formular):
     filtered = filtered.sort_values('time').reset_index().drop('index', axis=1)   
     filtered['id'] = range(0, len(filtered))
 
-    st.write(filtered)
+    # st.write(filtered)
     return filtered    
 
 def removejumping(data): 
