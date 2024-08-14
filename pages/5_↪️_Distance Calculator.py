@@ -124,7 +124,7 @@ def statistics(trackpoints):
     st.write ('Start time:', trackpoints.iloc[0].time)
     st.write ('End time:', trackpoints.iloc[-1].time)
 
-    st.write(trackpoints)
+    # st.write(trackpoints)
     st.write('Activity types: ', trackpoints['motionActivity'].unique()) 
 
 
@@ -383,7 +383,6 @@ with col1:
                                     'circle':False,'marker':False,'circlemarker':False})
 
         m.add_child(draw)
-
         
         colors = [ 'green','blue', 'orange', 'red',
                   'lightblue', 'cadetblue', 'darkblue', 
@@ -521,7 +520,17 @@ if submitted:
             else:
                 return 'blue'  # default color
         
-        def accuracy_color(accuracy_radius):
+        def accuracy_color(accuracy_radius, id, min_id, max_id):            
+            if id == min_id:
+                fill_color =  'cyan'  # color for min ID
+                icon_shape = 'marker'
+            elif id == max_id:
+                fill_color = 'red'  # color for max ID    
+                icon_shape = 'marker'       
+            else: 
+                fill_color = None
+                icon_shape = 'circle'
+
             if accuracy_radius < 500:
                 icon_color = 'green' 
                 icon_size = [20,20]  
@@ -537,7 +546,7 @@ if submitted:
             else:
                 icon_color = '#ff0000'  
                 icon_size = [80,80]
-            return icon_color, icon_size
+            return icon_color, icon_size, fill_color, icon_shape
             
         min_id = trackpoints_cleaned['id'].min()
         max_id = trackpoints_cleaned['id'].max()
@@ -573,27 +582,37 @@ if submitted:
             # tooltip=trackpoins_cleaned_tooltip,
             # popup = folium.GeoJsonPopup(
             #         fields = trackpoints_cleaned_fields
-            #         )    
+            #         ) 
+            # 
+            popup_content = f"""
+            <b>ID:</b> {row['id']}<br>
+            <b>Time:</b> {row['time']}<br>
+            <b>Accuracy:</b> {row['accuracy']}<br>
+            """
+            popup = folium.Popup(popup_content, max_width=300)
+
             coordinates = [row.latitude, row.longitude] 
             id_value = row['id']
             accuracy_radius = row['accuracy']
             # Determine icon color based on value
-            icon_color, icon_size = accuracy_color(accuracy_radius)
+            icon_color, icon_size, fill_color, icon_shape = accuracy_color(accuracy_radius, id_value, min_id, max_id)
 
-            folium.Marker(
+            marker=folium.Marker(
                 location=coordinates,               
                 icon=BeautifyIcon(
                                 # icon="arrow-down", icon_shape="marker",
-                                popup=popup,
-                                tooltip=tooltip , 
+                                # popup=popup,
+                                # tooltip=tooltip , 
                                 number=id_value,
+                                icon_shape = icon_shape,
+                                background_color = fill_color,
                                 border_color= icon_color,
                                 border_width =1.5,
                                 text_color= "#000000",
                                 icon_size = icon_size
                             )                
             ).add_to(m)
-
+            marker.add_child(folium.Popup(popup_content, max_width=300))
         
 
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
