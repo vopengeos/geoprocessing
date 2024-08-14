@@ -24,3 +24,4 @@ pyspark
 apache-sedona
 leafmap
 streamlit-keplergl
+snowflake-snowpark-python

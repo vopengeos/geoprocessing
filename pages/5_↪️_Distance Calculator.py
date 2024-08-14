@@ -207,7 +207,7 @@ def removejumping(data):
             velocity_diff =  (distance_diff/1000)/(time_diff/3600) #km/h 
             # st.write(data.iloc[i-1].time, data.iloc[i].time,velocity,' km/h') 
             if velocity_diff >70  or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
-                st.write('Current Point: ', data.iloc[i-1].session, data.iloc[i-1].id, data.iloc[i-1].time, ' Jumping Point: ',data.iloc[i].session, data.iloc[i].id, data.iloc[i].time, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity_diff,2),' km/h')
+                # st.write('Current Point: ', data.iloc[i-1].id, data.iloc[i-1].time, ' Jumping Point: ',data.iloc[i].session, data.iloc[i].id, data.iloc[i].time, ' Time (seconds): ', round(time_diff, 2) , ' Distance (m): ', round(distance_diff,2), 'Velocity: ', round(velocity_diff,2),' km/h')
                 outliers_index.append(data.iloc[i].time)            
             
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
@@ -236,7 +236,7 @@ def osrm_route(start_lon, start_lat, end_lon, end_lat):
     # url = f'https://routing.openstreetmap.de/routed-car/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?continue_straight=true'
     r = requests.get(url,verify=False) 
     if r.status_code == 200:   
-        st.write (url)     
+        # st.write (url)     
         res = r.json()  
         # routes = polyline.decode(res['matchings'][0]['geometry'])
         routes = polyline.decode(res['matchings'][0]['geometry'])
@@ -252,7 +252,7 @@ def osrm_route(start_lon, start_lat, end_lon, end_lat):
         return osrmroute
     else:
         url= f'https://api-gw.sovereignsolutions.com/gateway/routing/india/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?api-key=6bb21ca2-5a4e-4776-b80a-87e2fbd6408d'
-        st.write (url)
+        # st.write (url)
         r = requests.get(url,verify=False) 
         if r.status_code == 200:        
             res = r.json()  
@@ -293,11 +293,11 @@ def traveledDistance(data):
        
         if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
             if velocity_diff > 5:   
-                st.write(data.iloc[i-1].id, data.iloc[i-1].time)
-                st.write(data.iloc[i].id, data.iloc[i].time)
-                st.write('velocity: ',  velocity_diff)
-                st.write('time_diff: ', time_diff)
-                st.write('distance_temp:', distance_temp)            
+                # st.write(data.iloc[i-1].id, data.iloc[i-1].time)
+                # st.write(data.iloc[i].id, data.iloc[i].time)
+                # st.write('velocity: ',  velocity_diff)
+                # st.write('time_diff: ', time_diff)
+                # st.write('distance_temp:', distance_temp)            
                 route = osrm_route(data.iloc[i - 1].longitude, data.iloc[i - 1].latitude, data.iloc[i].longitude, data.iloc[i].latitude)
                 # print('distance_temp:', distance_temp)
                 if route is not None:
@@ -312,10 +312,13 @@ def traveledDistance(data):
                     if route['distance'] <= 2.5*distance_temp:
                         # print('route distance:',route['distance'])
                         routing_distance.append(round(route['distance'],2))
-                        routing_index.append(data.iloc[i-1].time)  
-                        routing_index.append(data.iloc[i].time)                     
+                        # routing_index.append(data.iloc[i-1].time)  
+                        # routing_index.append(data.iloc[i].time)    
+                        routing_index.append(data.iloc[i-1].id)  
+                        routing_index.append(data.iloc[i].id)                     
+                 
                         route_geometries.append(LineString(route['geometry'])) 
-                        st.write('routing_geometries: ', route_geometries)
+                        # st.write('routing_geometries: ', route_geometries)
                         count += 1                    
                         distance_temp = route['distance']
             ############# Not calculate walk points             
@@ -327,7 +330,7 @@ def traveledDistance(data):
         # # if distance_temp> 100000 or distance_temp < 420 : # if the interval of GPS signal is 5 minutes
             distance_temp = 0
         totalDistance += distance_temp   
-    st.write('Number of using routing in distance calculation: ', count, routing_index,'Crow fly distance: ' , crowfly_distance, 'Routing Distance: ', routing_distance)
+    # st.write('Number of using routing in distance calculation: ', count, routing_index,'Crow fly distance: ' , crowfly_distance, 'Routing Distance: ', routing_distance)
     totalDistance_km = round(totalDistance/1000, 3)
     return totalDistance_km    
 
@@ -517,6 +520,25 @@ if submitted:
                 return 'red'  # color for max ID
             else:
                 return 'blue'  # default color
+        
+        def accuracy_color(accuracy_radius):
+            if accuracy_radius < 500:
+                icon_color = 'green' 
+                icon_size = [20,20]  
+            elif 500 <= accuracy_radius < 1000:
+                icon_color = '#ECC30B'  
+                icon_size = [30,30]
+            elif 1000 <= accuracy_radius < 2000:
+                icon_color = '#ffa500'  
+                icon_size = [40,40]
+            elif 2000 <= accuracy_radius < 5000:
+                icon_color = '#BC5313' 
+                icon_size = [60,60] 
+            else:
+                icon_color = '#ff0000'  
+                icon_size = [80,80]
+            return icon_color, icon_size
+            
         min_id = trackpoints_cleaned['id'].min()
         max_id = trackpoints_cleaned['id'].max()
         
@@ -533,41 +555,46 @@ if submitted:
             popup = row_copy.to_frame().to_html()
             
             # Determine the color of the icon based on the row's id
-            color = get_color(row['id'], min_id, max_id)
+            # color = get_color(row['id'], min_id, max_id)
 
             tooltip = f"time: {row['time']}<br>" \
               f"time_diff: {row['time_diff']}<br>" \
               f"distance_diff: {row['distance_diff']}<br>" \
               f"velocity_diff: {row['velocity_diff']}"
 
-
-            folium.Marker([row['latitude'], row['longitude']], 
-                        popup=popup,
-                        tooltip=tooltip , 
-                        icon=folium.Icon(icon='car', color=color, prefix='fa')
-                        # icon=folium.Icon(icon='car', prefix='fa')
-                        ).add_to(m)      
+            # folium.Marker([row['latitude'], row['longitude']], 
+            #             popup=popup,
+            #             tooltip=tooltip , 
+            #             icon=folium.Icon(icon='car', color=color, prefix='fa')
+            #             # icon=folium.Icon(icon='car', prefix='fa')
+            #             ).add_to(m)      
             
-        #### Display ID
-        for idx, row in trackpoints_cleaned.iterrows():
+            #### Display ID
             # tooltip=trackpoins_cleaned_tooltip,
             # popup = folium.GeoJsonPopup(
             #         fields = trackpoints_cleaned_fields
             #         )    
             coordinates = [row.latitude, row.longitude] 
             id_value = row['id']
+            accuracy_radius = row['accuracy']
+            # Determine icon color based on value
+            icon_color, icon_size = accuracy_color(accuracy_radius)
+
             folium.Marker(
                 location=coordinates,               
                 icon=BeautifyIcon(
                                 # icon="arrow-down", icon_shape="marker",
                                 popup=popup,
+                                tooltip=tooltip , 
                                 number=id_value,
-                                border_color= '#91cf60',
-                                border_width =0.5,
-                                text_color= "#000000"
+                                border_color= icon_color,
+                                border_width =1.5,
+                                text_color= "#000000",
+                                icon_size = icon_size
                             )                
             ).add_to(m)
 
+        
 
         m.fit_bounds(m.get_bounds(), padding=(30, 30))
         folium_static(m, width = 600)      
