@@ -1,5 +1,5 @@
 
-<h1 style="text-align: center;">BecaGIS Streamlit - Geospatial Apps made Easy</h1>
+<h1 style="text-align: center;">Geoprocessing on Streamlit</h1>
 
 A Streamlit Geoprocessing App inspired by [streamlit-geospatial](https://github.com/giswqs/streamlit-geospatial). It can be deployed to [Streamlit Cloud](https://streamlit.io/cloud), [Heroku](https://heroku.com/), or [MyBinder](https://mybinder.org/).
 
