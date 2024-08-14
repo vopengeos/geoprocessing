@@ -291,6 +291,7 @@ def traveledDistance(data):
         if time_diff>0:
             velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
        
+        # if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
         if velocity_diff > 70 or time_diff > MAX_ALLOWED_TIME_GAP or distance_temp> MAX_ALLOWED_DISTANCE_GAP:  # MAX_ALLOWED_TIME_GAP = 300s in case of GPS signals lost for more than MAX_ALLOWED_TIME_GAP seconds
             if velocity_diff > 5:   
                 # st.write(data.iloc[i-1].id, data.iloc[i-1].time)
@@ -325,7 +326,7 @@ def traveledDistance(data):
             else:     distance_temp = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
-        # if distance_temp> 100000:
+        # if distance_temp> 100000:        
         if distance_temp> 400000 and velocity_diff> 200: # if the interval of GPS signal is 1 minutes
         # # if distance_temp> 100000 or distance_temp < 420 : # if the interval of GPS signal is 5 minutes
             distance_temp = 0
