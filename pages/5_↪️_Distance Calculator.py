@@ -591,7 +591,6 @@ if submitted:
             <b>time_diff: </b>{row['time_diff']}<br>" 
             <b>distance_diff: </b>{row['distance_diff']}<br>" 
             <b>velocity_diff: </b>{row['velocity_diff']}"
-
             """
             popup = folium.Popup(popup_content, max_width=300)
 
