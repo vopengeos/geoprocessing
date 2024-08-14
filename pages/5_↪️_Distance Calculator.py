@@ -588,8 +588,8 @@ if submitted:
             <b>ID: </b> {row['id']}<br>
             <b>Time: </b> {row['time']}<br>
             <b>Accuracy: </b> {row['accuracy']}<br>
-            <b>"time_diff: </b>{row['time_diff']}<br>" 
-            <b>"distance_diff: </b>{row['distance_diff']}<br>" 
+            <b>time_diff: </b>{row['time_diff']}<br>" 
+            <b>distance_diff: </b>{row['distance_diff']}<br>" 
             <b>velocity_diff: </b>{row['velocity_diff']}"
 
             """
