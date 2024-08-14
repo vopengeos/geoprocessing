@@ -150,9 +150,9 @@ def preProcessing(data, start_time, end_time, formular):
     st.write('After filter Motion Activity: ', len(filtered))    
 
     ############## Drop duplicate track points (the same latitude and longitude, and datetime)  
-    # filtered = filtered.drop_duplicates(subset=["driver", "session","time"], keep='last') # except last point in case of return to sart point with the same lat long
-    # filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
-    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude", "time"], keep='last') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["driver", "session","time"], keep='last') # except last point in case of return to sart point with the same lat long
+    filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude"], keep='last') # except last point in case of return to sart point with the same lat long
+    # filtered = filtered.drop_duplicates(subset=["driver", "session","latitude", "longitude", "time"], keep='last') # except last point in case of return to sart point with the same lat long
 
     st.write('After delete duplicates: ', len(filtered))    
     filtered['time_string'] = pd.to_datetime(filtered['time']).dt.date  
@@ -161,9 +161,11 @@ def preProcessing(data, start_time, end_time, formular):
     filtered['time_diff'] = np.nan
     filtered['distance_diff'] = np.nan
     filtered['velocity_diff'] = np.nan
+    filtered['accuracy_diff'] = np.nan
 
     # Calculate time_diff in seconds
     filtered['time_diff'] = filtered['time'].diff().dt.total_seconds()
+    filtered['accuracy_diff'] = filtered['accuracy'].diff()
 
     # Calculate distance_diff in meters using haversine function
     # Shift latitude and longitude to get previous values
@@ -211,8 +213,20 @@ def removejumping(data):
                 outliers_index.append(data.iloc[i].time)            
             
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
-    st.write ('After remove jumping point:', len(filtered))    
+    st.write ('After remove jumping points:', len(filtered))    
     return filtered
+
+def removestationary(data): 
+    filtered = data
+    st.write('Session: ', filtered['session'].unique()) 
+    outliers_index = []
+    for i in range (1, len(filtered)):     
+        if data.iloc[i].accuracy >= 1500 and data.iloc[i].speed == 0 and data.iloc[i].heading == 0:
+            outliers_index.append(data.iloc[i].time)             
+    filtered = filtered[filtered.time.isin(outliers_index) == False]   
+    st.write ('After remove stationary points:', len(filtered))    
+    return filtered
+
 
 def removejumping_formap(data): 
     filtered = data
@@ -225,6 +239,16 @@ def removejumping_formap(data):
             velocity =  (distance_diff/1000)/(time_diff/3600) #km/h   
             if velocity >70 or distance_diff> MAX_ALLOWED_DISTANCE_JUMPING: #km/h,
                 outliers_index.append(data.iloc[i].time)            
+    filtered = filtered[filtered.time.isin(outliers_index) == False]   
+    return filtered
+
+
+def removestationary_formap(data): 
+    filtered = data
+    outliers_index = []
+    for i in range (1, len(filtered)):     
+        if data.iloc[i].accuracy >= 1500 and data.iloc[i].speed == 0 and data.iloc[i].heading == 0:
+            outliers_index.append(data.iloc[i].time)             
     filtered = filtered[filtered.time.isin(outliers_index) == False]   
     return filtered
 
@@ -277,7 +301,8 @@ def reverse_lat_long_linestring(linestring):
 
 def traveledDistance(data):
     # Remove jumping point groupeb by driver, date, session
-    data = removejumping(data)    
+    data = removejumping(data)   
+    data = removestationary(data)   
     totalDistance = 0
     count = 0
     routing_index = []
@@ -288,6 +313,8 @@ def traveledDistance(data):
         time_diff = (datetime.strptime(str(data.iloc[i].time), '%Y-%m-%d %H:%M:%S') - datetime.strptime(str(data.iloc[i - 1].time), '%Y-%m-%d %H:%M:%S')).total_seconds()
         # distance_temp = geopy.distance.geodesic((data.iloc[i-1].latitude, data.iloc[i-1].longitude), (data.iloc[i].latitude, data.iloc[i].longitude)).m
         distance_temp = haversine(data.iloc[i-1].longitude, data.iloc[i-1].latitude, data.iloc[i].longitude, data.iloc[i].latitude)
+        accuracy_diff = data.iloc[i].accuracy - data.iloc[i-1].accuracy
+
         if time_diff>0:
             velocity_diff =  (distance_temp/1000)/(time_diff/3600) #km/h      
        
@@ -324,6 +351,8 @@ def traveledDistance(data):
                         distance_temp = route['distance']
             ############# Not calculate walk points             
             else:     distance_temp = 0
+        if accuracy_diff >= 1000 or data.iloc[i].accuracy >= 1500 :
+            distance_temp  = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         # if distance_temp> 100000:        
@@ -433,17 +462,17 @@ if submitted:
         st.write('Step 2/2: Distance Calculation')
         groupBy = ['driver', 'time_string', 'session']
         st.write('Distance traveled:', CalculateDistance(df, groupBy), ' km') 
-
+        
         df_removejumping = removejumping_formap(df)
-        df_removejumping = df
+        df_removejumping_stationary = removestationary_formap(df_removejumping)
+        # df_removejumping = df
         # df_removejumping = removejumping(df)
-        geometry = [Point(xy) for xy in zip(df_removejumping.longitude, df_removejumping.latitude)]
-        trackpoints_cleaned = gdp.GeoDataFrame(df_removejumping, geometry=geometry, crs = 'epsg:4326')
+        geometry = [Point(xy) for xy in zip(df_removejumping_stationary.longitude, df_removejumping_stationary.latitude)]
+        trackpoints_cleaned = gdp.GeoDataFrame(df_removejumping_stationary, geometry=geometry, crs = 'epsg:4326')
         # trackpoints_cleaned = trackpoints_cleaned.sort_values(by='time')
         # Create a new column representing the ordered field
         # trackpoints_cleaned['id'] = range(1, len(trackpoints_cleaned) + 1)
-        
-        
+                
             
         trackpoints_cleaned_fields = [ column for column in trackpoints_cleaned.columns if column not in trackpoints_cleaned.select_dtypes('geometry') and column not in ['meta']]
 
@@ -451,7 +480,7 @@ if submitted:
         # folium.GeoJson(geo_df_cleaned).add_to(m)
         # folium_static(m, width = 800)
         # download_geojson(geo_df_cleaned, 'track_points_cleaned')                
-        geo_df = gdp.GeoDataFrame(df_removejumping, geometry=geometry)
+        geo_df = gdp.GeoDataFrame(df_removejumping_stationary, geometry=geometry)
         # aggregate these points with the GrouBy
         geo_df = geo_df.groupby(['driver', 'time_string'])['geometry'].apply(lambda x: LineString(x.tolist()))
         track_distance = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
@@ -591,7 +620,8 @@ if submitted:
             <b>Accuracy: </b> {row['accuracy']}<br>
             <b>time_diff: </b>{row['time_diff']}<br>
             <b>distance_diff: </b>{row['distance_diff']}<br>
-            <b>velocity_diff: </b>{row['velocity_diff']}
+            <b>velocity_diff: </b>{row['velocity_diff']}<br>
+            <b>accuracy_diff: </b>{row['accuracy_diff']}
             """
             popup = folium.Popup(popup_content, max_width=300)
 
