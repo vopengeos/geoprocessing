@@ -134,7 +134,7 @@ def kalmanfilter(data):
     times = pd.to_datetime(data['time']).astype(np.int64) / 1e9  # Convert to seconds    
     # Calculate time interval (dt) based on time data
     dt = np.mean(np.diff(times))
-    
+    dt = 5
     # Initialize the Kalman Filter
     # Define the transition and observation matrices (assuming a simple 2D constant velocity model)
     transition_matrix = np.array([[1, dt, 0, 0],
@@ -207,9 +207,6 @@ def preProcessing(data, start_time, end_time, formular):
     filtered = filtered.loc[mask]
     
     st.write('After filter Motion Activity: ', len(filtered))    
-
-     # applying kalman filter
-    filtered = kalmanfilter(filtered)
 
     ############## Drop duplicate track points (the same latitude and longitude, and datetime)  
     filtered = filtered.drop_duplicates(subset=["driver", "session","time"], keep='last') # except last point in case of return to sart point with the same lat long
@@ -365,6 +362,9 @@ def traveledDistance(data):
     # Remove jumping point groupeb by driver, date, session
     data = removejumping(data)   
     data = removestationary(data)   
+    # applying kalman filter
+    data = kalmanfilter(data)
+
     totalDistance = 0
     count = 0
     routing_index = []
