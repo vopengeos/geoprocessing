@@ -11,6 +11,7 @@ import geopandas as gdp
 from shapely.geometry import Point, LineString
 from shapely import reverse
 from folium.plugins import Fullscreen, MeasureControl
+from pykalman import KalmanFilter
 
 import streamlit_ext as ste
 import geopandas as gpd
@@ -127,6 +128,64 @@ def statistics(trackpoints):
     # st.write(trackpoints)
     st.write('Activity types: ', trackpoints['motionActivity'].unique()) 
 
+def kalmanfilter(data):
+    latitudes = data['latitude'].values
+    longitudes = data['longitude'].values
+    times = pd.to_datetime(data['time']).astype(np.int64) / 1e9  # Convert to seconds    
+    # Calculate time interval (dt) based on time data
+    dt = np.mean(np.diff(times))
+    
+    # Initialize the Kalman Filter
+    # Define the transition and observation matrices (assuming a simple 2D constant velocity model)
+    transition_matrix = np.array([[1, dt, 0, 0],
+                                [0, 1, 0, 0],
+                                [0, 0, 1, dt],
+                                [0, 0, 0, 1]])
+
+    observation_matrix = np.array([[1, 0, 0, 0],
+                                [0, 0, 1, 0]])
+
+    # Initial state mean
+    initial_state_mean = np.array([latitudes[0], 0, longitudes[0], 0])
+
+    # Initial covariance matrix
+    initial_state_covariance = np.eye(4) * 1e-4
+
+    # Observation covariance (measurement noise)
+    observation_covariance = np.eye(2) * 1e-1
+
+    # Transition covariance (process noise)
+    transition_covariance = np.eye(4) * 1e-4
+    
+    # Initialize the Kalman Filter
+    kf = KalmanFilter(
+        transition_matrices=transition_matrix,
+        observation_matrices=observation_matrix,
+        initial_state_mean=initial_state_mean,
+        initial_state_covariance=initial_state_covariance,
+        observation_covariance=observation_covariance,
+        transition_covariance=transition_covariance
+    )   
+
+    # Apply the Kalman Filter
+    try:
+        # Stack the latitudes and longitudes for the observations
+        observations = np.column_stack([latitudes, longitudes])
+        # print("Observations stacked successfully.")
+
+        # Use the Kalman Filter to estimate the state means
+        state_means, state_covariances = kf.smooth(observations)
+        st.write("Kalman Filter applied successfully.")
+        filtered_latitudes = state_means[:, 0]
+        filtered_longitudes = state_means[:, 2]
+        filtered_data = data.copy()  # Copy all original columns
+        filtered_data['latitude'] = filtered_latitudes  # Replace with filtered latitude
+        filtered_data['longitude'] = filtered_longitudes  # Replace with filtered longitude
+        return filtered_data
+    except Exception as e:
+        st.write(f"Error applying Kalman Filter: {e}")
+        return data
+
 
 def preProcessing(data, start_time, end_time, formular):
     filtered = data
@@ -148,6 +207,9 @@ def preProcessing(data, start_time, end_time, formular):
     filtered = filtered.loc[mask]
     
     st.write('After filter Motion Activity: ', len(filtered))    
+
+     # applying kalman filter
+    filtered = kalmanfilter(filtered)
 
     ############## Drop duplicate track points (the same latitude and longitude, and datetime)  
     filtered = filtered.drop_duplicates(subset=["driver", "session","time"], keep='last') # except last point in case of return to sart point with the same lat long
