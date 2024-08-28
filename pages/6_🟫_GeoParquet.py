@@ -19,7 +19,6 @@ st.set_page_config(layout="wide")
 #     """
 # )
 st.title("GeoParquet Data Visualization")
-st.write('GeoParquet Data Visualization')
 col1, col2 = st.columns(2)
 def download_geojson(gdf, layer_name):
     if not gdf.empty:        
@@ -57,6 +56,3 @@ if submitted:
     m.add_gdf(gdf, layer_name=layername)
     m.to_streamlit()
     download_geojson(gdf,layername)   
-
-
-

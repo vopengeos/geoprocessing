@@ -26,8 +26,6 @@ st.set_page_config(layout="wide")
 # )
 
 st.title("PyDeck Point Rendering")
-st.write('PyDeck Point Rendering')
-
 
 col1, col2 = st.columns(2)
 

@@ -4,11 +4,10 @@ import streamlit as st
 import streamlit_ext as ste
 import geopandas as gpd
 import fiona, os
-from shapely.geometry import shape, Point, LineString, Polygon, LinearRing
+from shapely.geometry import Polygon
 import pyproj
-import numpy as np
-import shapely
 from shapely.ops import transform
+from folium.plugins import Fullscreen
 
 
 st.set_page_config(layout="wide")
@@ -26,7 +25,6 @@ st.set_page_config(layout="wide")
 #     """
 # )
 st.title("Remove Polygon's Holes")
-st.write("Remove Polygon's Holes")
 col1, col2 = st.columns(2)   
 area_tolerance = 0 
 
@@ -36,7 +34,7 @@ def download_geojson(gdf, layer_name):
         with col2:
             ste.download_button(
                 label="Download GeoJSON",
-                file_name= 'antipodes_' + layer_name+ '.geojson',
+                file_name= 'removeholes_' + layer_name+ '.geojson',
                 mime="application/json",
                 data=geojson
             ) 
@@ -91,7 +89,7 @@ def create_holes_polygon(source):
         return target  
     
     else:
-        st.warning('Cannot remove holes in polygon!')
+        st.warning('Cannot remove holes in polygons!')
         return source
 
 @st.cache_data
@@ -131,7 +129,7 @@ def highlight_function(feature):
 }
 
 
-form = st.form(key="latlon_calculator")
+form = st.form(key="remove_holes")
 with form:   
     url = st.text_input(
             "Enter a URL to a vector dataset",
@@ -167,7 +165,13 @@ with form:
           
         with col1:   
             fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
-            m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)           
+            m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)  
+            Fullscreen(                                                         
+                position                = "topright",                                   
+                title                   = "Open full-screen map",                       
+                title_cancel            = "Close full-screen map",                      
+                force_separate_button   = True,                                         
+            ).add_to(m)         
             folium.GeoJson(gdf, name = layer_name,  
                            style_function = style_function, 
                         #    highlight_function=highlight_function,
@@ -196,6 +200,12 @@ with form:
                     center_lon, center_lat = center.x, center.y             
                     fields = [ column for column in target.columns if column not in target.select_dtypes('geometry')]
                     m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)
+                    Fullscreen(                                                         
+                        position                = "topright",                                   
+                        title                   = "Open full-screen map",                       
+                        title_cancel            = "Close full-screen map",                      
+                        force_separate_button   = True,                                         
+                    ).add_to(m)     
                     folium.GeoJson(target,  
                                    style_function = style_function, 
                                 #    highlight_function=highlight_function,

@@ -2,25 +2,19 @@ import folium, os
 from folium.plugins import Draw, BeautifyIcon  
 import streamlit as st
 from streamlit_folium import st_folium, folium_static
-from folium.plugins import MousePosition
-import routingpy as rp
 import pandas as pd
 from datetime import datetime
-from routingpy import OSRM
 import geopandas as gdp
 from shapely.geometry import Point, LineString
-from shapely import reverse
-from folium.plugins import Fullscreen, MeasureControl
+from folium.plugins import Fullscreen
 from pykalman import KalmanFilter
 
 import streamlit_ext as ste
 import geopandas as gpd
 # from pykalman import KalmanFilter
 import numpy as np
-from math import radians, cos, acos, sin, asin, sqrt
+from math import radians, cos, sin, asin, sqrt
 import requests, polyline
-from keplergl import KeplerGl
-from streamlit_keplergl import keplergl_static
 
 st.set_page_config(layout="wide")
 st.title("Distance Calculator")
@@ -360,11 +354,12 @@ def reverse_lat_long_linestring(linestring):
 
 def traveledDistance(data):
     # Remove jumping point groupeb by driver, date, session
-    data = removejumping(data)   
-    data = removestationary(data)   
-    # applying kalman filter
+    data = removejumping(data) 
+    data = removestationary(data)    
     data = kalmanfilter(data)
-
+    
+    # applying kalman filter
+    
     totalDistance = 0
     count = 0
     routing_index = []
@@ -413,7 +408,8 @@ def traveledDistance(data):
                         distance_temp = route['distance']
             ############# Not calculate walk points             
             else:     distance_temp = 0
-        if accuracy_diff >= 1000 or data.iloc[i].accuracy >= 1500 :
+        # if accuracy_diff >= 1000 or data.iloc[i].accuracy >= 1500 :
+        if accuracy_diff >= 200 or data.iloc[i].accuracy >= 1500 :
             distance_temp  = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)

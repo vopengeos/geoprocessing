@@ -1,5 +1,5 @@
 pandas
-geopandas
+geopandas~=1.0.1
 keplergl
 streamlit
 folium

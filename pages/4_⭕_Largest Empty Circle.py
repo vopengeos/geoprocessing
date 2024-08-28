@@ -3,15 +3,11 @@ from streamlit_folium import folium_static
 import streamlit as st
 import streamlit_ext as ste
 import geopandas as gpd
-import pandas as pd
 import fiona, os
-from shapely.geometry import mapping, shape, Point, MultiPoint, LineString, Polygon, LinearRing
-import numpy as np
-import shapely
-# from shapely.ops import transform
+from shapely.geometry import   MultiPoint, Polygon
 from shapely.ops import voronoi_diagram
-from scipy.spatial import Voronoi, ConvexHull, distance_matrix
 from math import radians, cos, acos, sin, asin, sqrt
+from folium.plugins import Fullscreen
 
 
 st.set_page_config(layout="wide")
@@ -67,7 +63,6 @@ def voronoi_polygon(source):
     voronoi_geometry  = {'geometry':voronoi.geoms}
     target = gpd.GeoDataFrame(voronoi_geometry, crs = source.crs)
     return target
-
 
 
 def haversine(lon1, lat1, lon2, lat2):
@@ -160,6 +155,13 @@ with form:
         with col1:   
             fields = [ column for column in source.columns if column not in source.select_dtypes('geometry')]
             m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)           
+            Fullscreen(                                                         
+                position                = "topright",                                   
+                title                   = "Open full-screen map",                       
+                title_cancel            = "Close full-screen map",                      
+                force_separate_button   = True,                                         
+            ).add_to(m)   
+
             folium.GeoJson(source, name = layer_name,  
                            style_function = style_function, 
                            highlight_function=highlight_function,
@@ -217,7 +219,13 @@ with form:
                 center_lon, center_lat = map_center.x, map_center.y             
                 fields = [ column for column in source.columns if column not in source.select_dtypes('geometry')]
                 m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)
-                                          
+                Fullscreen(                                                         
+                    position                = "topright",                                   
+                    title                   = "Open full-screen map",                       
+                    title_cancel            = "Close full-screen map",                      
+                    force_separate_button   = True,                                         
+                ).add_to(m)      
+
                 folium.GeoJson(clip,  
                                 style_function = style_function, 
                                 highlight_function=highlight_function,                                   
@@ -252,8 +260,5 @@ with form:
                 folium_static(m, width = 600)  
                 # 
                 st.write('Largest Empty Circle Raidus (approximately for distance near the equator): ', round(lec_center['radius'].iloc[0]*111139* 10**(-3),2), ' km') 
-                # st.write('Largest Empty Circle Raidus: ', round(lec_center['radius'].iloc[0]*10**(-3),2), ' km') 
-                # st.write (haversine(103.609, 14.612, 106.098998559197867, 11.318869769511060))
-                # st.write (great_circle(103.609, 14.612, 106.098998559197867, 11.318869769511060))
                 download_center(lec_center, layer_name)  
                 download_lec(lec, layer_name) 

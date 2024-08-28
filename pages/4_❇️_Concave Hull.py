@@ -3,16 +3,8 @@ from streamlit_folium import folium_static
 import streamlit as st
 import streamlit_ext as ste
 import geopandas as gpd
-import pandas as pd
 import fiona, os
-from shapely.geometry import mapping, shape, Point, MultiPoint, LineString, Polygon, LinearRing
-import numpy as np
-import shapely
-# from shapely.ops import transform
-from shapely.ops import voronoi_diagram
-from scipy.spatial import Voronoi, ConvexHull, distance_matrix
-from math import radians, cos, acos, sin, asin, sqrt
-
+from folium.plugins import Fullscreen
 
 st.set_page_config(layout="wide")
 # st.sidebar.info(
@@ -37,8 +29,8 @@ def download_concavehull(gdf, layer_name):
         geojson = gdf.to_json()  
         with col2:
             ste.download_button(
-                label="Download LEC",
-                file_name= 'lec_' + layer_name+ '.geojson',
+                label="Download concave hull",
+                file_name= 'concave_' + layer_name+ '.geojson',
                 mime="application/json",
                 data=geojson
             ) 
@@ -85,7 +77,7 @@ def concave_hull_create(source):
     concavehull = source_dissolved.concave_hull(ratio=0.3, allow_holes=True)
     return concavehull
 
-form = st.form(key="largest_empty_circle")
+form = st.form(key="cancavehull")
 with form:   
     url = st.text_input(
             "Enter a URL to a point dataset",
@@ -116,6 +108,13 @@ with form:
         with col1:   
             fields = [ column for column in source.columns if column not in source.select_dtypes('geometry')]
             m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)           
+            Fullscreen(                                                         
+                position                = "topright",                                   
+                title                   = "Open full-screen map",                       
+                title_cancel            = "Close full-screen map",                      
+                force_separate_button   = True,                                         
+            ).add_to(m)   
+            
             folium.GeoJson(source, name = layer_name,  
                            style_function = style_function, 
                            highlight_function=highlight_function,
@@ -142,6 +141,12 @@ with form:
                 center_lon, center_lat = map_center.x, map_center.y             
                 fields = [ column for column in source.columns if column not in source.select_dtypes('geometry')]
                 m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4)                                        
+                Fullscreen(                                                         
+                    position                = "topright",                                   
+                    title                   = "Open full-screen map",                       
+                    title_cancel            = "Close full-screen map",                      
+                    force_separate_button   = True,                                         
+                ).add_to(m)   
                 
                 folium.GeoJson(concave_hull,                                    
                                 style_function = style_function, 
@@ -161,4 +166,4 @@ with form:
 
                 m.fit_bounds(m.get_bounds(), padding=(30, 30))
                 folium_static(m, width = 600)  
-                download_concavehull(concave_hull, layer_name)  
+                download_concavehull(concave_hull, layer_name) 

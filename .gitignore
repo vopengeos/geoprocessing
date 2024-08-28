@@ -5,7 +5,7 @@ __pycache__/
 # *.html
 private/
 .vscode/
-
+/references
 # C extensions
 *.so
 

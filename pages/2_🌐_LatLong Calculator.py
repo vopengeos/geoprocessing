@@ -1,20 +1,16 @@
 import folium
-from folium.plugins import Geocoder
-from streamlit_folium import st_folium,folium_static
+from streamlit_folium import folium_static
 import streamlit as st
-from becalib.latlong import parseDMSString, formatDmsString, formatMgrsString 
+from becalib.latlong import formatDmsString, formatMgrsString 
 import pyproj
 from pyproj import CRS, Transformer
-from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
 import what3words
 from  becalib import olc, mgrs, geohash, maidenhead, georef, utm
-from folium.plugins import MarkerCluster, FastMarkerCluster, Fullscreen
+from folium.plugins import MarkerCluster, Fullscreen
 import pandas as pd
 import streamlit_ext as ste
 import geopandas as gpd
-
-
 
 st.set_page_config(layout="wide")
 # st.sidebar.info(
@@ -32,7 +28,7 @@ st.set_page_config(layout="wide")
 # )
 
 st.title("LatLong Calculator")
-st.write('LatLong Calculator is inspired by [Lat Lon Tools](https://plugins.qgis.org/plugins/latlontools/) ')
+st.write('LatLong Calculator is inspired by [Lat Lon Tools](https://plugins.qgis.org/plugins/latlontools/). Please click on the map.')
 
 UTM_FORMATS = ['48N 686261 1192650', '686261,1192650,48N','686261mE,1192650mN,48N', '686261mE,1192650mN,48,N']
 
@@ -57,7 +53,7 @@ def download_csv(df):
         click = ste.download_button(
         label= "Download CSV ",
         data = csv,
-        file_name= "becagis.csv",
+        file_name= "latlong.csv",
         mime = "text/csv")        
 
 @st.cache_data      
@@ -69,7 +65,7 @@ def download_geojson(df):
         geojson = gdf.to_json()  
         ste.download_button(
             label="Download GeoJSON",
-            file_name= "becagis.geojson",
+            file_name= "latlong.geojson",
             mime="application/json",
             data=geojson
         ) 
@@ -345,13 +341,3 @@ with col1:
             folium_static(m, width = 600)
             download_csv(df)
             download_geojson(df)
-
-
-        
-        
-    
-
-
-
-
-

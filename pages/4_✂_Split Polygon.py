@@ -9,8 +9,7 @@ from shapely.geometry import Point, MultiPoint, Polygon
 import numpy as np
 from shapely.ops import voronoi_diagram
 from sklearn.cluster import KMeans
-
-
+from folium.plugins import Fullscreen
 
 st.set_page_config(layout="wide")
 # st.sidebar.info(
@@ -160,6 +159,13 @@ with form:
         with col1:   
             fields = [ column for column in gdf.columns if column not in gdf.select_dtypes('geometry')]
             m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)           
+            Fullscreen(                                                         
+                position                = "topright",                                   
+                title                   = "Open full-screen map",                       
+                title_cancel            = "Close full-screen map",                      
+                force_separate_button   = True,                                         
+            ).add_to(m)   
+
             folium.GeoJson(gdf, name = layer_name,  
                            style_function = style_function, 
                            highlight_function=highlight_function,
@@ -186,6 +192,13 @@ with form:
                     center_lon, center_lat = center.x, center.y             
                     fields = [ column for column in target.columns if column not in target.select_dtypes('geometry')]
                     m = folium.Map(tiles='cartodbpositron', location = [center_lat, center_lon], zoom_start=4, max_zoom = 20)
+                    Fullscreen(                                                         
+                        position                = "topright",                                   
+                        title                   = "Open full-screen map",                       
+                        title_cancel            = "Close full-screen map",                      
+                        force_separate_button   = True,                                         
+                    ).add_to(m)   
+
                     folium.GeoJson(target,  
                                    style_function = style_function, 
                                    highlight_function=highlight_function,                                   
