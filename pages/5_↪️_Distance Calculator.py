@@ -127,8 +127,11 @@ def kalmanfilter(data):
     longitudes = data['longitude'].values
     times = pd.to_datetime(data['time']).astype(np.int64) / 1e9  # Convert to seconds    
     # Calculate time interval (dt) based on time data
-    dt = np.mean(np.diff(times))
-    dt = 5
+    dt = np.median(np.diff(times))
+    st.write("#######")
+    st.write(str(np.median(np.diff(times))))
+    st.write("#######")
+    # dt = 60
     # Initialize the Kalman Filter
     # Define the transition and observation matrices (assuming a simple 2D constant velocity model)
     transition_matrix = np.array([[1, dt, 0, 0],
@@ -409,8 +412,8 @@ def traveledDistance(data):
             ############# Not calculate walk points             
             else:     distance_temp = 0
         # if accuracy_diff >= 1000 or data.iloc[i].accuracy >= 1500 :
-        if accuracy_diff >= 200 or data.iloc[i].accuracy >= 1500 :
-            distance_temp  = 0
+        # if accuracy_diff >= 200 or data.iloc[i].accuracy >= 1500 :
+        #     distance_temp  = 0
                 # print('distance_temp after if:', distance_temp)    
         # print("Loop:", i, "timediff:", timediff, "Distance Temp:", distance_temp, "Motion Activity:", data.iloc[i].motionActivity)
         # if distance_temp> 100000:        
@@ -523,10 +526,12 @@ if submitted:
         
         df_removejumping = removejumping_formap(df)
         df_removejumping_stationary = removestationary_formap(df_removejumping)
+        # df_removejumping_stationary_kalman = kalmanfilter(df_removejumping_stationary)
+        df_removejumping_stationary_kalman = df
         # df_removejumping = df
         # df_removejumping = removejumping(df)
-        geometry = [Point(xy) for xy in zip(df_removejumping_stationary.longitude, df_removejumping_stationary.latitude)]
-        trackpoints_cleaned = gdp.GeoDataFrame(df_removejumping_stationary, geometry=geometry, crs = 'epsg:4326')
+        geometry = [Point(xy) for xy in zip(df_removejumping_stationary_kalman.longitude, df_removejumping_stationary_kalman.latitude)]
+        trackpoints_cleaned = gdp.GeoDataFrame(df_removejumping_stationary_kalman, geometry=geometry, crs = 'epsg:4326')
         # trackpoints_cleaned = trackpoints_cleaned.sort_values(by='time')
         # Create a new column representing the ordered field
         # trackpoints_cleaned['id'] = range(1, len(trackpoints_cleaned) + 1)
@@ -538,7 +543,7 @@ if submitted:
         # folium.GeoJson(geo_df_cleaned).add_to(m)
         # folium_static(m, width = 800)
         # download_geojson(geo_df_cleaned, 'track_points_cleaned')                
-        geo_df = gdp.GeoDataFrame(df_removejumping_stationary, geometry=geometry)
+        geo_df = gdp.GeoDataFrame(df_removejumping_stationary_kalman, geometry=geometry)
         # aggregate these points with the GrouBy
         geo_df = geo_df.groupby(['driver', 'time_string'])['geometry'].apply(lambda x: LineString(x.tolist()))
         track_distance = gdp.GeoDataFrame(geo_df, geometry='geometry', crs = 'EPSG:4326')
